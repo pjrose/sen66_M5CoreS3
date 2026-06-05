@@ -17,14 +17,18 @@ public:
     void setStats(const char* meanText, const char* minText, const char* maxText);
     void addEvent(const String& eventText);
     void plotHistory(const HistoryPoint* points, size_t count, Metric metric);
+    void plotFilterDeviation(const HistoryPoint* points, size_t count, const FilterDeviationSummary& summary);
     void updateCameraRoll(const String* paths, size_t count);
+    void updateBaselineStatus(const AppSettings& settings);
     bool silenceRequested();
     bool brightnessChanged(uint8_t& value);
     bool volumeChanged(uint8_t& value);
     bool ftpToggleChanged(bool& enabled);
     bool calibrationRequested();
+    bool baselineResetRequested();
     Metric selectedMetric() const { return selectedMetric_; }
     bool monthMode() const { return monthMode_; }
+    bool filterChartMode() const { return filterChartMode_; }
 
 private:
     static void flushCb(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* colorP);
@@ -64,6 +68,7 @@ private:
     lv_obj_t* brightnessSlider_ = nullptr;
     lv_obj_t* volumeSlider_ = nullptr;
     lv_obj_t* ftpSwitch_ = nullptr;
+    lv_obj_t* baselineStatusLabel_ = nullptr;
     lv_obj_t* cameraRollLabels_[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
     String cameraRollPaths_[5];
 
@@ -72,10 +77,12 @@ private:
     bool volumeChanged_ = false;
     bool ftpChanged_ = false;
     bool calibrationRequested_ = false;
+    bool baselineResetRequested_ = false;
     bool ftpEnabled_ = false;
     uint8_t currentScreen_ = 0;
     Metric selectedMetric_ = Metric::Pm25;
     bool monthMode_ = false;
+    bool filterChartMode_ = false;
 };
 
 extern UiManager Ui;

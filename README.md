@@ -14,6 +14,7 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 - Plays alarms through the CoreS3 I2S speaker using `M5.Speaker`, not PWM buzzer output.
 - Captures proximity-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 50 images.
 - Provides optional FTP access to the SD card when enabled in settings.
+- Tracks HVAC filter health by learning a particulate baseline and charting long-term PM2.5/PM10 deviation over days.
 
 ## UI Mockups
 
@@ -41,6 +42,8 @@ The history screen uses `lv_chart` to render downsampled data without loading la
 
 Rolling mean, minimum, and maximum values are shown below the chart. This screen is designed to stay responsive even after weeks of logging.
 
+The `Filter` mode changes the chart into a slow-trend filter analysis view. It compares daily trimmed PM2.5/PM10 deviation against the saved baseline and displays current, peak, and average percent increase. This intentionally uses daily trimmed values instead of raw short-term readings so cooking, dusting, vacuuming, and other temporary spikes do not immediately look like a dirty filter.
+
 ### Screen 3: Event Log
 
 The event log is a scrollable LVGL list of persisted anomalies and system events. Examples include high PM2.5, high CO2, VOC alarm, sensor communication failure, and recovery messages.
@@ -51,7 +54,36 @@ Events are also appended to `/alerts.log` on the SD card, so the visible list is
 
 The settings screen exposes brightness, alarm volume, FTP enable/disable, and manual CO2 calibration. Brightness and volume changes are saved back to `/config.json` so they survive restart.
 
+The `Baseline` button starts a new HVAC filter baseline capture. By default, the device learns for 72 hours, then stores a trimmed hourly mean for PM2.5 and PM10. The status line shows whether the baseline is learning, ready, or not set.
+
 The bottom row shows the five newest camera entries from `/cam`. Tapping an entry opens a full-screen JPEG preview using the CoreS3 display. The camera manager keeps up to 50 timestamped JPEG captures and removes the oldest files during rotation.
+
+## HVAC Filter Baseline Logic
+
+This feature is designed to avoid short-term false positives. A dirty HVAC filter is treated as a slow trend, not a single bad reading.
+
+1. Press `Baseline` after installing a clean HVAC filter.
+2. The station records normal particulate behavior for `filter_baseline.capture_hours`, defaulting to 72 hours.
+3. When the capture window is complete, it reads hourly summary records and calculates trimmed means for PM2.5 and PM10, dropping the highest and lowest 10% of hourly values.
+4. The `Filter` chart groups later hourly summaries by day, calculates percent increase over baseline, and trims the highest daily outlier hours before plotting.
+5. The chart summary reports current, peak, and average deviation over the recent window.
+
+This makes the analysis resistant to brief events such as cooking, cleaning, candles, open windows, and vacuuming. For even stronger filter-life prediction, feed HVAC fan runtime into MQTT or a future GPIO/current-sense input and combine particulate deviation with fan-hours.
+
+The filter baseline is persisted in `/config.json`:
+
+```json
+"filter_baseline": {
+  "active": false,
+  "ready": true,
+  "capture_hours": 72,
+  "pm25_ugm3": 7.8,
+  "pm10_ugm3": 12.4,
+  "sample_hours": 68,
+  "warn_percent": 35,
+  "replace_percent": 60
+}
+```
 
 ## Build
 

@@ -37,6 +37,17 @@ struct AppSettings {
     bool ftpEnabled = false;
     String ftpUser = "air";
     String ftpPassword = "quality";
+
+    bool filterBaselineActive = false;
+    bool filterBaselineReady = false;
+    uint32_t filterBaselineStarted = 0;
+    uint32_t filterBaselineCompleted = 0;
+    uint16_t filterBaselineHours = 72;
+    float filterBaselinePm25 = NAN;
+    float filterBaselinePm10 = NAN;
+    uint16_t filterBaselineSampleHours = 0;
+    uint16_t filterWarnPercent = 35;
+    uint16_t filterReplacePercent = 60;
 };
 
 struct SensorSample {
@@ -114,6 +125,21 @@ enum class DeviceState : uint8_t {
 struct HistoryPoint {
     uint32_t timestamp = 0;
     int16_t value = 0;
+};
+
+struct BaselineResult {
+    float pm25 = NAN;
+    float pm10 = NAN;
+    uint16_t hours = 0;
+    bool valid = false;
+};
+
+struct FilterDeviationSummary {
+    int16_t currentPercent = 0;
+    int16_t peakPercent = 0;
+    int16_t meanPercent = 0;
+    uint16_t days = 0;
+    bool valid = false;
 };
 
 inline uint16_t clampU16(float value, float scale) {

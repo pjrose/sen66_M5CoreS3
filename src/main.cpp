@@ -44,6 +44,7 @@ uint32_t lastInteractionMs = 0;
 uint32_t lastStatusPaintMs = 0;
 uint32_t lastChartRefreshMs = 0;
 uint32_t lastNtpSyncMs = 0;
+uint32_t lastBaselineCheckMs = 0;
 bool displayDimmed = false;
 
 void setState(DeviceState next) {
@@ -157,12 +158,79 @@ void updateLatestSample(const SensorSample& sample) {
 void refreshChart() {
     HistoryPoint points[120];
     const uint32_t now = static_cast<uint32_t>(time(nullptr));
+    if (Ui.filterChartMode()) {
+        FilterDeviationSummary summary;
+        const size_t count = Logger.readFilterDeviation(now, Config.settings(), points, 120, &summary);
+        Ui.plotFilterDeviation(points, count, summary);
+        return;
+    }
     const size_t count = Ui.monthMode()
                              ? Logger.readMonth(now, Ui.selectedMetric(), points, 120, 120)
                              : Logger.readDay(now, Ui.selectedMetric(), points, 120, 120);
     if (count > 0) {
         Ui.plotHistory(points, count, Ui.selectedMetric());
     }
+}
+
+void startFilterBaselineCapture() {
+    AppSettings& settings = Config.settings();
+    const uint32_t now = static_cast<uint32_t>(time(nullptr));
+    settings.filterBaselineActive = true;
+    settings.filterBaselineReady = false;
+    settings.filterBaselineStarted = now;
+    settings.filterBaselineCompleted = 0;
+    settings.filterBaselineSampleHours = 0;
+    settings.filterBaselinePm25 = NAN;
+    settings.filterBaselinePm10 = NAN;
+    if (settings.filterBaselineHours < 24) {
+        settings.filterBaselineHours = 72;
+    }
+    Config.save();
+    Ui.updateBaselineStatus(settings);
+    const String msg = "Filter baseline capture started (" + String(settings.filterBaselineHours) + "h)";
+    Ui.addEvent(msg);
+    Logger.appendAlert(msg, now);
+}
+
+void serviceFilterBaselineCapture() {
+    const uint32_t nowMs = millis();
+    if (nowMs - lastBaselineCheckMs < 60000UL) {
+        return;
+    }
+    lastBaselineCheckMs = nowMs;
+
+    AppSettings& settings = Config.settings();
+    if (!settings.filterBaselineActive || settings.filterBaselineStarted == 0) {
+        return;
+    }
+
+    const uint32_t now = static_cast<uint32_t>(time(nullptr));
+    const uint32_t requiredSeconds = static_cast<uint32_t>(settings.filterBaselineHours) * 3600UL;
+    if (now < settings.filterBaselineStarted + requiredSeconds) {
+        Ui.updateBaselineStatus(settings);
+        return;
+    }
+
+    BaselineResult baseline;
+    if (!Logger.computeParticulateBaseline(settings.filterBaselineStarted, now, baseline)) {
+        Ui.updateBaselineStatus(settings);
+        return;
+    }
+
+    settings.filterBaselineActive = false;
+    settings.filterBaselineReady = true;
+    settings.filterBaselineCompleted = now;
+    settings.filterBaselinePm25 = baseline.pm25;
+    settings.filterBaselinePm10 = baseline.pm10;
+    settings.filterBaselineSampleHours = baseline.hours;
+    Config.save();
+
+    const String msg = "Filter baseline ready: PM2.5 " + String(baseline.pm25, 1) +
+                       ", PM10 " + String(baseline.pm10, 1) +
+                       " (" + String(baseline.hours) + "h)";
+    Ui.addEvent(msg);
+    Logger.appendAlert(msg, now);
+    Ui.updateBaselineStatus(settings);
 }
 
 void serviceNetwork(void*) {
@@ -286,6 +354,9 @@ void applyUiControls() {
         Ui.addEvent(msg);
         Logger.appendAlert(msg, static_cast<uint32_t>(time(nullptr)));
     }
+    if (Ui.baselineResetRequested()) {
+        startFilterBaselineCapture();
+    }
     if (Ui.silenceRequested()) {
         Audio.silence();
     }
@@ -346,6 +417,7 @@ void paintStatusAndSample() {
     }
 
     Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
+    Ui.updateBaselineStatus(Config.settings());
 }
 
 }  // namespace
@@ -373,6 +445,7 @@ void setup() {
     String recent[5];
     const size_t recentCount = Camera.recentImages(recent, 5);
     Ui.updateCameraRoll(recent, recentCount);
+    Ui.updateBaselineStatus(Config.settings());
 
     lastInteractionMs = millis();
     xTaskCreatePinnedToCore(serviceNetwork, "network", 8192, nullptr, 1, nullptr, 0);
@@ -385,6 +458,7 @@ void loop() {
     Ftp.service();
     Audio.service(millis());
     applyUiControls();
+    serviceFilterBaselineCapture();
     paintStatusAndSample();
 
     if (millis() - lastChartRefreshMs > kChartRefreshMs) {

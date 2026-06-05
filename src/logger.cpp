@@ -9,10 +9,18 @@ DataLogger Logger;
 
 namespace {
 constexpr uint8_t kLogVersion = 1;
+constexpr size_t kMaxBaselineHours = 168;
+constexpr size_t kHoursPerDay = 24;
 
 String two(int value) {
     return value < 10 ? "0" + String(value) : String(value);
 }
+
+struct DayBucket {
+    uint32_t dayStart = 0;
+    int16_t deviation[kHoursPerDay] = {};
+    uint8_t count = 0;
+};
 
 String dateStamp(uint32_t epoch) {
     time_t t = epoch;
@@ -191,6 +199,128 @@ size_t DataLogger::readMonth(uint32_t nowEpoch, Metric metric, HistoryPoint* out
     return count;
 }
 
+bool DataLogger::computeParticulateBaseline(uint32_t startEpoch, uint32_t endEpoch, BaselineResult& result) {
+    result = BaselineResult{};
+    if (endEpoch <= startEpoch) {
+        return false;
+    }
+    File file = SD.open("/log/monthly_summary.dat", FILE_READ);
+    if (!file) {
+        lastError_ = "Summary log unavailable for baseline";
+        return false;
+    }
+
+    int16_t pm25[kMaxBaselineHours];
+    int16_t pm10[kMaxBaselineHours];
+    size_t count = 0;
+    const size_t total = file.size() / sizeof(HourSummaryRecord);
+    for (size_t i = 0; i < total && count < kMaxBaselineHours; ++i) {
+        HourSummaryRecord record;
+        if (!file.seek(i * sizeof(record)) || file.read(reinterpret_cast<uint8_t*>(&record), sizeof(record)) != sizeof(record)) {
+            break;
+        }
+        if (record.hourStart < startEpoch || record.hourStart >= endEpoch || record.count == 0) {
+            continue;
+        }
+        if (record.pm25_x10.mean == INT16_MAX || record.pm10_x10.mean == INT16_MAX) {
+            continue;
+        }
+        pm25[count] = record.pm25_x10.mean;
+        pm10[count] = record.pm10_x10.mean;
+        count++;
+    }
+    file.close();
+
+    if (count < 12) {
+        lastError_ = "Need at least 12 hourly baseline points";
+        return false;
+    }
+
+    result.pm25 = trimmedMean(pm25, count, 10) / 10.0f;
+    result.pm10 = trimmedMean(pm10, count, 10) / 10.0f;
+    result.hours = static_cast<uint16_t>(count);
+    result.valid = isfinite(result.pm25) && isfinite(result.pm10) && result.pm25 > 0.1f && result.pm10 > 0.1f;
+    return result.valid;
+}
+
+size_t DataLogger::readFilterDeviation(uint32_t nowEpoch, const AppSettings& settings, HistoryPoint* out, size_t capacity, FilterDeviationSummary* summary) {
+    if (summary) {
+        *summary = FilterDeviationSummary{};
+    }
+    if (!out || capacity == 0 || !settings.filterBaselineReady ||
+        !isfinite(settings.filterBaselinePm25) || !isfinite(settings.filterBaselinePm10) ||
+        settings.filterBaselinePm25 <= 0.1f || settings.filterBaselinePm10 <= 0.1f) {
+        return 0;
+    }
+
+    File file = SD.open("/log/monthly_summary.dat", FILE_READ);
+    if (!file) {
+        return 0;
+    }
+
+    DayBucket bucket;
+    size_t count = 0;
+    int32_t sum = 0;
+    int16_t peak = INT16_MIN;
+    const uint32_t oldest = nowEpoch > 30UL * 24UL * 3600UL ? nowEpoch - 30UL * 24UL * 3600UL : 0;
+    const size_t total = file.size() / sizeof(HourSummaryRecord);
+
+    auto flushDay = [&]() {
+        if (bucket.count == 0 || count >= capacity) {
+            bucket = DayBucket{};
+            return;
+        }
+        const float trimmed = trimmedMean(bucket.deviation, bucket.count, 15);
+        const int16_t pct = static_cast<int16_t>(lroundf(trimmed));
+        out[count].timestamp = bucket.dayStart;
+        out[count].value = pct;
+        count++;
+        sum += pct;
+        peak = std::max(peak, pct);
+        bucket = DayBucket{};
+    };
+
+    for (size_t i = 0; i < total; ++i) {
+        HourSummaryRecord record;
+        if (!file.seek(i * sizeof(record)) || file.read(reinterpret_cast<uint8_t*>(&record), sizeof(record)) != sizeof(record)) {
+            break;
+        }
+        if (record.hourStart < oldest || record.count == 0 ||
+            record.pm25_x10.mean == INT16_MAX || record.pm10_x10.mean == INT16_MAX) {
+            continue;
+        }
+
+        const uint32_t day = record.hourStart - (record.hourStart % 86400UL);
+        if (bucket.count > 0 && bucket.dayStart != day) {
+            flushDay();
+        }
+        if (bucket.count == 0) {
+            bucket.dayStart = day;
+        }
+
+        const float pm25 = record.pm25_x10.mean / 10.0f;
+        const float pm10 = record.pm10_x10.mean / 10.0f;
+        const float pm25Pct = ((pm25 - settings.filterBaselinePm25) / settings.filterBaselinePm25) * 100.0f;
+        const float pm10Pct = ((pm10 - settings.filterBaselinePm10) / settings.filterBaselinePm10) * 100.0f;
+        const float combined = std::max(pm25Pct, pm10Pct);
+        bucket.deviation[bucket.count++] = static_cast<int16_t>(lroundf(std::max(-50.0f, std::min(250.0f, combined))));
+        if (bucket.count >= kHoursPerDay) {
+            flushDay();
+        }
+    }
+    flushDay();
+    file.close();
+
+    if (summary && count > 0) {
+        summary->days = static_cast<uint16_t>(count);
+        summary->currentPercent = out[count - 1].value;
+        summary->peakPercent = peak;
+        summary->meanPercent = static_cast<int16_t>(sum / static_cast<int32_t>(count));
+        summary->valid = true;
+    }
+    return count;
+}
+
 bool DataLogger::flushHourIfNeeded(uint32_t timestamp) {
     const uint32_t currentHour = hourStart(timestamp);
     if (hour_.count == 0) {
@@ -262,6 +392,27 @@ bool DataLogger::readRecordAt(File& file, size_t index, LogRecord& record) {
         return false;
     }
     return file.read(reinterpret_cast<uint8_t*>(&record), sizeof(record)) == sizeof(record);
+}
+
+float DataLogger::trimmedMean(int16_t* values, size_t count, uint8_t trimPercent) const {
+    if (!values || count == 0) {
+        return NAN;
+    }
+    std::sort(values, values + count);
+    size_t trim = (count * trimPercent) / 100;
+    if (count < 10) {
+        trim = 0;
+    }
+    if (trim * 2 >= count) {
+        trim = 0;
+    }
+    int32_t sum = 0;
+    size_t used = 0;
+    for (size_t i = trim; i < count - trim; ++i) {
+        sum += values[i];
+        used++;
+    }
+    return used > 0 ? sum / static_cast<float>(used) : NAN;
 }
 
 }  // namespace aq

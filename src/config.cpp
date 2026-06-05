@@ -89,6 +89,20 @@ bool ConfigManager::load() {
     settings_.ftpEnabled = doc["ftp_enabled"] | settings_.ftpEnabled;
     settings_.ftpUser = doc["ftp_user"] | settings_.ftpUser;
     settings_.ftpPassword = doc["ftp_password"] | settings_.ftpPassword;
+
+    JsonObject filter = doc["filter_baseline"];
+    if (!filter.isNull()) {
+        settings_.filterBaselineActive = filter["active"] | settings_.filterBaselineActive;
+        settings_.filterBaselineReady = filter["ready"] | settings_.filterBaselineReady;
+        settings_.filterBaselineStarted = filter["started_epoch"] | settings_.filterBaselineStarted;
+        settings_.filterBaselineCompleted = filter["completed_epoch"] | settings_.filterBaselineCompleted;
+        settings_.filterBaselineHours = filter["capture_hours"] | settings_.filterBaselineHours;
+        settings_.filterBaselinePm25 = filter["pm25_ugm3"] | settings_.filterBaselinePm25;
+        settings_.filterBaselinePm10 = filter["pm10_ugm3"] | settings_.filterBaselinePm10;
+        settings_.filterBaselineSampleHours = filter["sample_hours"] | settings_.filterBaselineSampleHours;
+        settings_.filterWarnPercent = filter["warn_percent"] | settings_.filterWarnPercent;
+        settings_.filterReplacePercent = filter["replace_percent"] | settings_.filterReplacePercent;
+    }
     return true;
 }
 
@@ -113,6 +127,18 @@ bool ConfigManager::save() const {
     doc["ftp_enabled"] = settings_.ftpEnabled;
     doc["ftp_user"] = settings_.ftpUser;
     doc["ftp_password"] = settings_.ftpPassword;
+
+    JsonObject filter = doc["filter_baseline"].to<JsonObject>();
+    filter["active"] = settings_.filterBaselineActive;
+    filter["ready"] = settings_.filterBaselineReady;
+    filter["started_epoch"] = settings_.filterBaselineStarted;
+    filter["completed_epoch"] = settings_.filterBaselineCompleted;
+    filter["capture_hours"] = settings_.filterBaselineHours;
+    filter["pm25_ugm3"] = settings_.filterBaselinePm25;
+    filter["pm10_ugm3"] = settings_.filterBaselinePm10;
+    filter["sample_hours"] = settings_.filterBaselineSampleHours;
+    filter["warn_percent"] = settings_.filterWarnPercent;
+    filter["replace_percent"] = settings_.filterReplacePercent;
 
     SD.remove(kConfigPath);
     File file = SD.open(kConfigPath, FILE_WRITE);

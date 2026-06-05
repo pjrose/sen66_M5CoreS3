@@ -107,9 +107,11 @@ void UiManager::eventCb(lv_event_t* e) {
         case 3: Ui.showScreen(2, true); break;
         case 4: Ui.showScreen(3, true); break;
         case 10: Ui.silenceRequested_ = true; break;
-        case 20: Ui.monthMode_ = false; break;
-        case 21: Ui.monthMode_ = true; break;
+        case 20: Ui.monthMode_ = false; Ui.filterChartMode_ = false; break;
+        case 21: Ui.monthMode_ = true; Ui.filterChartMode_ = false; break;
+        case 22: Ui.filterChartMode_ = true; break;
         case 30: Ui.calibrationRequested_ = true; break;
+        case 31: Ui.baselineResetRequested_ = true; break;
         default: break;
     }
     if (code >= 50 && code < 55) {
@@ -253,6 +255,14 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(monthLabel, "30 Days");
     lv_obj_center(monthLabel);
 
+    lv_obj_t* filterBtn = lv_btn_create(screens_[1]);
+    lv_obj_set_pos(filterBtn, 200, 204);
+    lv_obj_set_size(filterBtn, 88, 28);
+    lv_obj_add_event_cb(filterBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(22));
+    lv_obj_t* filterLabel = lv_label_create(filterBtn);
+    lv_label_set_text(filterLabel, "Filter");
+    lv_obj_center(filterLabel);
+
     eventList_ = lv_list_create(screens_[2]);
     lv_obj_set_pos(eventList_, 6, 8);
     lv_obj_set_size(eventList_, 308, 224);
@@ -279,16 +289,30 @@ void UiManager::createScreens(const AppSettings& settings) {
     ftpEnabled_ = settings.ftpEnabled;
     lv_obj_add_event_cb(ftpSwitch_, [](lv_event_t*) { Ui.ftpChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
 
+    lv_obj_t* baselineBtn = lv_btn_create(screens_[3]);
+    lv_obj_set_pos(baselineBtn, 38, 126);
+    lv_obj_set_size(baselineBtn, 116, 32);
+    lv_obj_add_event_cb(baselineBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(31));
+    lv_obj_t* baselineBtnLabel = lv_label_create(baselineBtn);
+    lv_label_set_text(baselineBtnLabel, "Baseline");
+    lv_obj_center(baselineBtnLabel);
+
     lv_obj_t* calBtn = lv_btn_create(screens_[3]);
-    lv_obj_set_pos(calBtn, 38, 126);
-    lv_obj_set_size(calBtn, 244, 32);
+    lv_obj_set_pos(calBtn, 164, 126);
+    lv_obj_set_size(calBtn, 118, 32);
     lv_obj_add_event_cb(calBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(30));
     lv_obj_t* calLabel = lv_label_create(calBtn);
-    lv_label_set_text(calLabel, "CO2 Calibration");
+    lv_label_set_text(calLabel, "CO2 Cal");
     lv_obj_center(calLabel);
 
+    baselineStatusLabel_ = lv_label_create(screens_[3]);
+    lv_obj_set_pos(baselineStatusLabel_, 8, 164);
+    lv_obj_set_width(baselineStatusLabel_, 304);
+    lv_obj_set_style_text_font(baselineStatusLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_text(baselineStatusLabel_, "Filter baseline: not set");
+
     for (uint8_t i = 0; i < 5; ++i) {
-        lv_obj_t* slot = createCard(screens_[3], 8 + i * 62, 182, 56, 34);
+        lv_obj_t* slot = createCard(screens_[3], 8 + i * 62, 194, 56, 30);
         lv_obj_add_event_cb(slot, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<uintptr_t>(50 + i)));
         lv_obj_add_flag(slot, LV_OBJ_FLAG_CLICKABLE);
         cameraRollLabels_[i] = lv_label_create(slot);
@@ -380,6 +404,31 @@ void UiManager::plotHistory(const HistoryPoint* points, size_t count, Metric met
     setStats(mean, minT, maxT);
 }
 
+void UiManager::plotFilterDeviation(const HistoryPoint* points, size_t count, const FilterDeviationSummary& summary) {
+    if (!points || count == 0) {
+        lv_chart_set_range(chart_, LV_CHART_AXIS_PRIMARY_Y, 0, 100);
+        setStats("wait", "wait", "wait");
+        return;
+    }
+    lv_chart_set_point_count(chart_, std::min<size_t>(120, count));
+    int16_t minValue = INT16_MAX;
+    int16_t maxValue = INT16_MIN;
+    for (size_t i = 0; i < count; ++i) {
+        const int16_t value = points[i].value;
+        lv_chart_set_next_value(chart_, chartSeries_, value);
+        minValue = std::min(minValue, value);
+        maxValue = std::max(maxValue, value);
+    }
+    lv_chart_set_range(chart_, LV_CHART_AXIS_PRIMARY_Y, std::min<int16_t>(-20, minValue), std::max<int16_t>(100, maxValue + 10));
+    lv_chart_refresh(chart_);
+
+    char current[16], peak[16], mean[16];
+    snprintf(current, sizeof(current), "%d%%", summary.currentPercent);
+    snprintf(peak, sizeof(peak), "%d%%", summary.peakPercent);
+    snprintf(mean, sizeof(mean), "%d%%", summary.meanPercent);
+    lv_label_set_text_fmt(statsLabel_, "Now %s   Peak %s   Avg %s", current, peak, mean);
+}
+
 void UiManager::updateCameraRoll(const String* paths, size_t count) {
     for (size_t i = 0; i < 5; ++i) {
         if (i < count) {
@@ -392,6 +441,24 @@ void UiManager::updateCameraRoll(const String* paths, size_t count) {
             lv_label_set_text(cameraRollLabels_[i], "--");
         }
     }
+}
+
+void UiManager::updateBaselineStatus(const AppSettings& settings) {
+    if (!baselineStatusLabel_) {
+        return;
+    }
+    if (settings.filterBaselineActive) {
+        const uint32_t now = static_cast<uint32_t>(time(nullptr));
+        const uint32_t elapsed = now > settings.filterBaselineStarted ? now - settings.filterBaselineStarted : 0;
+        const uint16_t doneHours = static_cast<uint16_t>(std::min<uint32_t>(settings.filterBaselineHours, elapsed / 3600UL));
+        lv_label_set_text_fmt(baselineStatusLabel_, "Filter baseline: learning %uh/%uh", doneHours, settings.filterBaselineHours);
+        return;
+    }
+    if (settings.filterBaselineReady) {
+        lv_label_set_text_fmt(baselineStatusLabel_, "Filter baseline: PM2.5 %.1f  PM10 %.1f", settings.filterBaselinePm25, settings.filterBaselinePm10);
+        return;
+    }
+    lv_label_set_text(baselineStatusLabel_, "Filter baseline: not set");
 }
 
 bool UiManager::silenceRequested() {
@@ -431,6 +498,12 @@ bool UiManager::ftpToggleChanged(bool& enabled) {
 bool UiManager::calibrationRequested() {
     const bool value = calibrationRequested_;
     calibrationRequested_ = false;
+    return value;
+}
+
+bool UiManager::baselineResetRequested() {
+    const bool value = baselineResetRequested_;
+    baselineResetRequested_ = false;
     return value;
 }
 

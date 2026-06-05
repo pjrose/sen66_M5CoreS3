@@ -14,6 +14,8 @@ public:
     bool appendAlert(const String& message, uint32_t timestamp);
     size_t readDay(uint32_t dayEpoch, Metric metric, HistoryPoint* out, size_t capacity, size_t targetPoints);
     size_t readMonth(uint32_t nowEpoch, Metric metric, HistoryPoint* out, size_t capacity, size_t targetPoints);
+    bool computeParticulateBaseline(uint32_t startEpoch, uint32_t endEpoch, BaselineResult& result);
+    size_t readFilterDeviation(uint32_t nowEpoch, const AppSettings& settings, HistoryPoint* out, size_t capacity, FilterDeviationSummary* summary);
     String lastError() const { return lastError_; }
 
 private:
@@ -46,6 +48,7 @@ private:
     int16_t metricValue(const LogRecord& record, Metric metric) const;
     int16_t metricValue(const HourSummaryRecord& record, Metric metric) const;
     bool readRecordAt(File& file, size_t index, LogRecord& record);
+    float trimmedMean(int16_t* values, size_t count, uint8_t trimPercent) const;
 
     bool ready_ = false;
     HourAccumulator hour_;
@@ -55,4 +58,3 @@ private:
 extern DataLogger Logger;
 
 }  // namespace aq
-
