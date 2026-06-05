@@ -11,7 +11,7 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 - Stores fixed-width daily binary records and hourly monthly summaries for fast chart loading on a microcontroller.
 - Presents a dark LVGL interface with glass-style cards, horizontal swipe navigation, alarm banner, and touch controls.
 - Publishes MQTT payloads when Wi-Fi is available while continuing local SD logging when offline.
-- Plays alarms through the CoreS3 I2S speaker using `M5.Speaker`, not PWM buzzer output.
+- Plays short walk-up chirps through the CoreS3 I2S speaker using `M5.Speaker`, not PWM buzzer output.
 - Captures proximity-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 50 images.
 - Provides optional FTP access to the SD card when enabled in settings.
 - Tracks HVAC filter health by learning a particulate baseline and charting long-term PM2.5/PM10 deviation over days.
@@ -34,7 +34,9 @@ These are documentation-grade mockups generated from the current LVGL layout. Th
 
 The dashboard is the default screen after boot. It shows a compact top status bar with Wi-Fi, MQTT, SD, time, and device state. The large circular gauge focuses on PM2.5 as the primary pollutant signal, using the AQI tint color: green for good, amber for warning, and red for unhealthy.
 
-The right side uses six glass cards for CO2, temperature, humidity, VOC, NOx, and PM10. When an alarm condition is active, a red `SILENCE ALARM` banner appears across the bottom. Tapping it mutes the I2S alarm while keeping the banner visible until air quality returns below the configured thresholds.
+The right side uses six glass cards for CO2, temperature, humidity, VOC, NOx, and PM10. When an alarm condition is active, a red `SILENCE ALARM` banner appears across the bottom. The banner remains visible until air quality returns below the configured thresholds.
+
+The speaker does not beep continuously. It chirps briefly when proximity/touch indicates someone has walked up to the station. A normal walk-up chirp is two soft notes; if an air-quality alert is active, the walk-up chirp becomes a short three-note urgent pattern. A 30-second cooldown prevents repeated chirps while someone remains nearby.
 
 ### Screen 2: Historical Charts
 
@@ -115,7 +117,7 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - `sensor_manager.*`: SEN66 init, warmup, standby, averaged reads, CO2 calibration.
 - `logger.*`: 24-byte daily binary records, 48-byte hourly summaries, downsampled history reads, alert log.
 - `ui_manager.*`: LVGL dark glass UI, swipe screens, dashboard, chart, event log, settings/camera roll.
-- `audio_manager.*`: M5Unified I2S speaker alarm chime and mute behavior.
+- `audio_manager.*`: M5Unified I2S one-shot walk-up chirps and mute behavior.
 - `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 50-file rotation.
 - `ftp_manager.*`: SimpleFTPServer wrapper.
 - `main.cpp`: FreeRTOS acquisition/network tasks, alarm state, UI service loop, light-sleep handling.

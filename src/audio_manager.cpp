@@ -18,13 +18,23 @@ void AudioManager::setVolume(uint8_t volume) {
 void AudioManager::setAlarmActive(bool active) {
     alarmActive_ = active;
     if (!active) {
-        M5.Speaker.stop();
-        toneStep_ = 0;
+        muted_ = false;
     }
+}
+
+void AudioManager::chirp(bool urgent) {
+    if (muted_) {
+        return;
+    }
+    chirpActive_ = true;
+    chirpUrgent_ = urgent;
+    toneStep_ = 0;
+    lastToneMs_ = 0;
 }
 
 void AudioManager::silence() {
     muted_ = true;
+    chirpActive_ = false;
     M5.Speaker.stop();
 }
 
@@ -35,22 +45,29 @@ void AudioManager::resetMuteIfClear(bool alertActive) {
 }
 
 void AudioManager::service(uint32_t nowMs) {
-    if (!alarmActive_ || muted_) {
+    if (!chirpActive_ || muted_) {
         return;
     }
-    if (nowMs - lastToneMs_ < 220) {
+    if (lastToneMs_ != 0 && nowMs - lastToneMs_ < 180) {
         return;
     }
-    static constexpr float tones[] = {880.0f, 1174.7f, 1568.0f, 0.0f, 784.0f};
-    const float frequency = tones[toneStep_ % (sizeof(tones) / sizeof(tones[0]))];
-    lastToneMs_ = nowMs;
-    toneStep_++;
-    if (frequency <= 0.0f) {
+
+    static constexpr float normalTones[] = {1046.5f, 1318.5f};
+    static constexpr float urgentTones[] = {880.0f, 1174.7f, 1568.0f};
+    const float* tones = chirpUrgent_ ? urgentTones : normalTones;
+    const uint8_t toneCount = chirpUrgent_ ? sizeof(urgentTones) / sizeof(urgentTones[0])
+                                           : sizeof(normalTones) / sizeof(normalTones[0]);
+
+    if (toneStep_ >= toneCount) {
+        chirpActive_ = false;
         M5.Speaker.stop();
         return;
     }
-    M5.Speaker.tone(frequency, 150);
+
+    const float frequency = tones[toneStep_];
+    lastToneMs_ = nowMs;
+    toneStep_++;
+    M5.Speaker.tone(frequency, chirpUrgent_ ? 120 : 95);
 }
 
 }  // namespace aq
-

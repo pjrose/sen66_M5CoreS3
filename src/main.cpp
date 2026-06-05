@@ -46,6 +46,8 @@ uint32_t lastChartRefreshMs = 0;
 uint32_t lastNtpSyncMs = 0;
 uint32_t lastBaselineCheckMs = 0;
 bool displayDimmed = false;
+bool wasPersonNearby = false;
+uint32_t lastWalkupChirpMs = 0;
 
 void setState(DeviceState next) {
     state = next;
@@ -364,7 +366,16 @@ void applyUiControls() {
 
 void handleDisplayPower() {
     const bool touched = M5.Touch.getDetail().isPressed();
-    if (touched || personDetected()) {
+    const bool nearby = personDetected();
+    const bool walkup = nearby && !wasPersonNearby;
+    wasPersonNearby = nearby;
+
+    if ((walkup || touched) && millis() - lastWalkupChirpMs > 30000UL) {
+        Audio.chirp(alertActive);
+        lastWalkupChirpMs = millis();
+    }
+
+    if (touched || nearby) {
         lastInteractionMs = millis();
         if (displayDimmed) {
             setCpuFrequencyMhz(240);
@@ -381,7 +392,7 @@ void handleDisplayPower() {
         }
     }
 
-    const bool darkAndEmpty = ambientLightRaw() < 5 && !personDetected();
+    const bool darkAndEmpty = ambientLightRaw() < 5 && !nearby;
     if (!displayDimmed && darkAndEmpty && millis() - lastInteractionMs > kIdleSleepAfterMs) {
         M5.Display.setBrightness(0);
         M5.Display.sleep();
