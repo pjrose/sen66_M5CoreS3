@@ -92,7 +92,7 @@ void UiManager::touchCb(lv_indev_drv_t*, lv_indev_data_t* data) {
 void UiManager::eventCb(lv_event_t* e) {
     if (lv_event_get_code(e) == LV_EVENT_GESTURE) {
         const lv_dir_t dir = lv_indev_get_gesture_dir(lv_indev_get_act());
-        if (dir == LV_DIR_LEFT && Ui.currentScreen_ < 3) {
+        if (dir == LV_DIR_LEFT && Ui.currentScreen_ < UiManager::kScreenCount - 1) {
             Ui.showScreen(Ui.currentScreen_ + 1, true);
         } else if (dir == LV_DIR_RIGHT && Ui.currentScreen_ > 0) {
             Ui.showScreen(Ui.currentScreen_ - 1, true);
@@ -321,13 +321,31 @@ void UiManager::createScreens(const AppSettings& settings) {
         lv_obj_center(cameraRollLabels_[i]);
     }
 
-    for (uint8_t s = 0; s < 4; ++s) {
+    lv_obj_t* maintTitle = lv_label_create(screens_[4]);
+    lv_obj_set_pos(maintTitle, 8, 6);
+    lv_obj_set_style_text_font(maintTitle, &lv_font_montserrat_16, 0);
+    lv_label_set_text(maintTitle, "Maintenance");
+
+    lv_obj_t* maintPanel = lv_obj_create(screens_[4]);
+    lv_obj_add_style(maintPanel, &styleGlass_, 0);
+    lv_obj_set_pos(maintPanel, 6, 30);
+    lv_obj_set_size(maintPanel, 308, 202);
+    lv_obj_set_scroll_dir(maintPanel, LV_DIR_VER);
+    lv_obj_set_scrollbar_mode(maintPanel, LV_SCROLLBAR_MODE_AUTO);
+
+    maintenanceLabel_ = lv_label_create(maintPanel);
+    lv_obj_set_width(maintenanceLabel_, 286);
+    lv_obj_set_style_text_font(maintenanceLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_long_mode(maintenanceLabel_, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(maintenanceLabel_, "Waiting for diagnostics...");
+
+    for (uint8_t s = 0; s < kScreenCount; ++s) {
         lv_obj_add_event_cb(screens_[s], eventCb, LV_EVENT_GESTURE, nullptr);
     }
 }
 
 void UiManager::showScreen(uint8_t index, bool animate) {
-    if (index >= 4) {
+    if (index >= kScreenCount) {
         return;
     }
     currentScreen_ = index;
@@ -459,6 +477,12 @@ void UiManager::updateBaselineStatus(const AppSettings& settings) {
         return;
     }
     lv_label_set_text(baselineStatusLabel_, "Filter baseline: not set");
+}
+
+void UiManager::updateMaintenance(const String& text) {
+    if (maintenanceLabel_) {
+        lv_label_set_text(maintenanceLabel_, text.c_str());
+    }
 }
 
 bool UiManager::silenceRequested() {

@@ -2,6 +2,7 @@
 #include <ArduinoJson.h>
 #include <M5Unified.h>
 #include <PubSubClient.h>
+#include <SD.h>
 #include <WiFi.h>
 #include <driver/gpio.h>
 #include <esp_sleep.h>
@@ -106,11 +107,22 @@ uint16_t ambientLightRaw() {
     return readLtrWord(0x88);
 }
 
-bool sampleTriggersAlarm(const SensorSample& sample) {
-    return sample.valid &&
-           (sample.co2 >= Config.settings().alarmCo2Ppm ||
-            sample.pm2p5 >= Config.settings().alarmPm25 ||
-            sample.vocIndex >= Config.settings().alarmVoc);
+void applyTimezone() {
+    const String tz = Config.settings().timezone.length() > 0 ? Config.settings().timezone : String("CST6CDT,M3.2.0,M11.1.0");
+    setenv("TZ", tz.c_str(), 1);
+    tzset();
+}
+
+bool sampleTriggersAlarm(const SensorSample& sample, bool currentlyActive) {
+    if (!sample.valid) {
+        return false;
+    }
+    const AppSettings& settings = Config.settings();
+    const float hysteresis = constrain(settings.alarmHysteresisPercent, 0.0f, 50.0f) / 100.0f;
+    const float clearFactor = currentlyActive ? 1.0f - hysteresis : 1.0f;
+    return sample.co2 >= settings.alarmCo2Ppm * clearFactor ||
+           sample.pm2p5 >= settings.alarmPm25 * clearFactor ||
+           sample.vocIndex >= settings.alarmVoc * clearFactor;
 }
 
 String alertMessage(const SensorSample& sample) {
@@ -150,16 +162,85 @@ void queueMqttPayload(const String& payload) {
     }
 }
 
-void updateLatestSample(const SensorSample& sample) {
+String formatBytes(uint64_t bytes) {
+    char buf[24] = {0};
+    if (bytes >= 1024ULL * 1024ULL * 1024ULL) {
+        snprintf(buf, sizeof(buf), "%.2f GB", bytes / 1073741824.0);
+    } else if (bytes >= 1024ULL * 1024ULL) {
+        snprintf(buf, sizeof(buf), "%.1f MB", bytes / 1048576.0);
+    } else if (bytes >= 1024ULL) {
+        snprintf(buf, sizeof(buf), "%.1f KB", bytes / 1024.0);
+    } else {
+        snprintf(buf, sizeof(buf), "%llu B", static_cast<unsigned long long>(bytes));
+    }
+    return String(buf);
+}
+
+String formatEpoch(uint32_t epoch) {
+    if (epoch == 0) {
+        return "never";
+    }
+    time_t t = epoch;
+    struct tm tmv {};
+    localtime_r(&t, &tmv);
+    char buf[24] = {0};
+    strftime(buf, sizeof(buf), "%m/%d %H:%M", &tmv);
+    return String(buf);
+}
+
+String maintenanceText() {
+    const AppSettings& settings = Config.settings();
+    const bool wifi = WiFi.status() == WL_CONNECTED;
+    const uint64_t sdTotal = Config.sdReady() ? SD.totalBytes() : 0;
+    const uint64_t sdUsed = Config.sdReady() ? SD.usedBytes() : 0;
+    const uint8_t sdPct = sdTotal > 0 ? static_cast<uint8_t>((sdUsed * 100ULL) / sdTotal) : 0;
+
+    String text;
+    text.reserve(760);
+    text += "Network\n";
+    text += "Connected: " + String(wifi ? "yes" : "no") + "\n";
+    text += "IP: " + (wifi ? WiFi.localIP().toString() : String("0.0.0.0")) + "\n";
+    text += "Subnet: " + (wifi ? WiFi.subnetMask().toString() : String("0.0.0.0")) + "\n";
+    text += "Gateway: " + (wifi ? WiFi.gatewayIP().toString() : String("0.0.0.0")) + "\n";
+    text += "RSSI: " + (wifi ? String(WiFi.RSSI()) + " dBm" : String("--")) + "\n\n";
+
+    text += "WiFi setup\n";
+    text += "SSID: " + (settings.wifiSsid.length() ? settings.wifiSsid : String("(not set)")) + "\n";
+    text += "Password: " + String(settings.wifiPassword.length() ? "set" : "not set") + "\n";
+    text += "MQTT: " + (settings.mqttHost.length() ? settings.mqttHost + ":" + String(settings.mqttPort) : String("(off)")) + "\n";
+    text += "TZ: " + settings.timezone + "\n\n";
+
+    text += "Storage\n";
+    text += "SD mounted: " + String(Config.sdReady() ? "yes" : "no") + "\n";
+    text += "Used: " + formatBytes(sdUsed) + " / " + formatBytes(sdTotal) + " (" + String(sdPct) + "%)\n\n";
+
+    text += "SEN66 health\n";
+    text += "Online: " + String(Sensors.online() ? "yes" : "no") + "\n";
+    text += "Measuring: " + String(Sensors.measuring() ? "yes" : "no") + "\n";
+    text += "Warmup: " + String(Sensors.warming() ? "yes" : "no") + "\n";
+    text += "Samples: " + String(Sensors.sampleSuccesses()) + "/" + String(Sensors.sampleAttempts()) + "\n";
+    text += "Errors: " + String(Sensors.sampleErrors()) + "  I2C: " + String(Sensors.i2cErrors()) + "\n";
+    text += "Last OK: " + formatEpoch(Sensors.lastSuccessEpoch()) + "\n";
+    text += "Last err: " + formatEpoch(Sensors.lastErrorEpoch()) + "\n";
+    text += "Detail: " + (Sensors.lastError().length() ? Sensors.lastError() : String("none")) + "\n\n";
+
+    text += "Alarms\n";
+    text += "CO2 " + String(settings.alarmCo2Ppm) + " ppm, PM2.5 " + String(settings.alarmPm25, 1) + ", VOC " + String(settings.alarmVoc) + "\n";
+    text += "Hysteresis: " + String(settings.alarmHysteresisPercent, 1) + "%";
+    return text;
+}
+
+bool updateLatestSample(const SensorSample& sample) {
     bool alertNow = false;
     if (xSemaphoreTake(sampleMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         latestSample = sample;
         latestSampleReady = true;
-        alertActive = sampleTriggersAlarm(sample);
+        alertActive = sampleTriggersAlarm(sample, alertActive);
         alertNow = alertActive;
         xSemaphoreGive(sampleMutex);
     }
     Web.updateSample(sample, alertNow, state);
+    return alertNow;
 }
 
 void refreshChart() {
@@ -265,7 +346,8 @@ void serviceNetwork(void*) {
             }
 
             if (lastNtpSyncMs == 0 || nowMs - lastNtpSyncMs > kNtpRefreshMs) {
-                configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+                applyTimezone();
+                configTzTime(Config.settings().timezone.c_str(), "pool.ntp.org", "time.nist.gov");
                 lastNtpSyncMs = nowMs;
             }
 
@@ -315,10 +397,9 @@ void serviceAcquisition(void*) {
             SensorSample sample;
             if (Sensors.readAveraged(5, 1000, sample)) {
                 Logger.append(sample);
-                updateLatestSample(sample);
+                const bool nowAlert = updateLatestSample(sample);
                 queueMqttPayload(buildMqttPayload(sample));
 
-                const bool nowAlert = sampleTriggersAlarm(sample);
                 if (nowAlert && !previousAlertActive) {
                     const String msg = alertMessage(sample);
                     Logger.appendAlert(msg, sample.timestamp);
@@ -445,6 +526,7 @@ void paintStatusAndSample() {
     Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
     Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
     Ui.updateBaselineStatus(Config.settings());
+    Ui.updateMaintenance(maintenanceText());
 }
 
 }  // namespace
@@ -462,6 +544,7 @@ void setup() {
     mqttMutex = xSemaphoreCreateMutex();
 
     Config.begin();
+    applyTimezone();
     Logger.begin();
     Audio.begin(Config.settings().buzzerVolume);
     Ui.begin(Config.settings());

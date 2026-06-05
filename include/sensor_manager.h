@@ -20,8 +20,15 @@ public:
 
     bool online() const { return online_; }
     bool warming() const { return warming_; }
+    bool measuring() const { return measuring_; }
     String lastError() const { return lastError_; }
     uint32_t warmupStartedMs() const { return warmupStartedMs_; }
+    uint32_t sampleAttempts() const { return sampleAttempts_; }
+    uint32_t sampleSuccesses() const { return sampleSuccesses_; }
+    uint32_t sampleErrors() const { return sampleErrors_; }
+    uint32_t i2cErrors() const { return i2cErrors_; }
+    uint32_t lastSuccessEpoch() const { return lastSuccessEpoch_; }
+    uint32_t lastErrorEpoch() const { return lastErrorEpoch_; }
 
 private:
     bool scanAddress(uint8_t address);
@@ -35,10 +42,15 @@ private:
     bool measuring_ = false;
     bool warming_ = false;
     uint32_t warmupStartedMs_ = 0;
+    uint32_t sampleAttempts_ = 0;
+    uint32_t sampleSuccesses_ = 0;
+    uint32_t sampleErrors_ = 0;
+    uint32_t i2cErrors_ = 0;
+    uint32_t lastSuccessEpoch_ = 0;
+    uint32_t lastErrorEpoch_ = 0;
     String lastError_;
 };
 
 extern SensorManager Sensors;
 
 }  // namespace aq
-

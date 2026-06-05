@@ -20,6 +20,8 @@ bool SensorManager::begin(TwoWire& wire) {
     if (!scanAddress(kSen66Address)) {
         lastError_ = "SEN66 not found at 0x6B";
         online_ = false;
+        i2cErrors_++;
+        lastErrorEpoch_ = static_cast<uint32_t>(time(nullptr));
         return false;
     }
 
@@ -94,8 +96,11 @@ bool SensorManager::readyForMeasurement(uint32_t nowMs) const {
 }
 
 bool SensorManager::readSample(SensorSample& out) {
+    sampleAttempts_++;
     if (!online_ || !measuring_) {
         lastError_ = "SEN66 is not measuring";
+        sampleErrors_++;
+        lastErrorEpoch_ = static_cast<uint32_t>(time(nullptr));
         return false;
     }
 
@@ -126,6 +131,13 @@ bool SensorManager::readSample(SensorSample& out) {
     out.noxIndex = validRaw(nox) ? nox / 10.0f : NAN;
     out.co2 = validRaw(co2) ? co2 : 0;
     out.valid = isfinite(out.pm2p5) || out.co2 > 0 || isfinite(out.temperature);
+    if (out.valid) {
+        sampleSuccesses_++;
+        lastSuccessEpoch_ = out.timestamp;
+    } else {
+        sampleErrors_++;
+        lastErrorEpoch_ = out.timestamp;
+    }
     return out.valid;
 }
 
@@ -165,6 +177,8 @@ bool SensorManager::readAveraged(uint8_t samples, uint32_t perSampleTimeoutMs, S
 
     if (accepted == 0) {
         lastError_ = "No valid samples in burst";
+        sampleErrors_++;
+        lastErrorEpoch_ = static_cast<uint32_t>(time(nullptr));
         return false;
     }
 
@@ -209,6 +223,9 @@ void SensorManager::setError(int16_t errorCode, const char* operation) {
     errorToString(errorCode, message, sizeof(message));
     lastError_ = String(operation) + ": " + message;
     online_ = false;
+    sampleErrors_++;
+    i2cErrors_++;
+    lastErrorEpoch_ = static_cast<uint32_t>(time(nullptr));
 }
 
 }  // namespace aq

@@ -31,6 +31,8 @@ struct AppSettings {
     uint16_t alarmCo2Ppm = 1200;
     float alarmPm25 = 35.0f;
     uint16_t alarmVoc = 250;
+    float alarmHysteresisPercent = 5.0f;
+    String timezone = "CST6CDT,M3.2.0,M11.1.0";
     uint8_t buzzerVolume = 96;
     uint8_t brightness = 170;
     uint16_t proximityThreshold = 150;

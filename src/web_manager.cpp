@@ -12,6 +12,9 @@ WebManager Web;
 
 namespace {
 
+constexpr const char* kConfigPath = "/config.json";
+constexpr const char* kConfigUploadPath = "/config_upload.tmp";
+
 const char kDashboardHtml[] PROGMEM = R"HTML(
 <!doctype html>
 <html lang="en">
@@ -31,6 +34,7 @@ h1{font-size:18px;margin:0}.status{color:var(--muted);font-size:12px}.wrap{max-w
 .tabs,.files-tabs{display:flex;gap:8px;flex-wrap:wrap}.tabs button,.files-tabs button,.download{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);border-radius:6px;padding:8px 10px;text-decoration:none}.tabs button.active,.files-tabs button.active{background:var(--good);color:#101010;font-weight:700}
 canvas{width:100%;height:260px;background:rgba(0,0,0,.16);border-radius:8px}.summary{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);margin-top:8px}
 .alert{display:none;background:var(--bad);color:#fff;border-radius:6px;padding:10px 12px;font-weight:800}.alert.on{display:block}.files{display:grid;gap:8px}.file{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--line)}.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:10px}.thumb{aspect-ratio:4/3;object-fit:cover;width:100%;border-radius:8px;border:1px solid var(--line);background:#222}
+.config-actions,.config-actions form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.file-input{max-width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;background:rgba(255,255,255,.05);color:var(--text)}.primary{border:1px solid var(--line);background:var(--good);color:#101010;border-radius:6px;padding:8px 10px;font-weight:800}
 @media(max-width:760px){.grid,.hero{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}canvas{height:220px}}
 </style>
 </head>
@@ -54,6 +58,16 @@ canvas{width:100%;height:260px;background:rgba(0,0,0,.16);border-radius:8px}.sum
 <section class="grid">
 <div class="card"><h2>Downloads</h2><div class="files-tabs"><button data-dir="/log" class="active">Logs</button><button data-dir="/cam">Images</button></div><div class="files" id="files"></div></div>
 <div class="card"><h2>Camera Roll</h2><div class="thumbs" id="thumbs"></div></div>
+</section>
+<section class="card">
+<h2>Configuration</h2>
+<div class="config-actions">
+  <a class="download" href="/config.json">Download config.json</a>
+  <form method="post" action="/config.json" enctype="multipart/form-data">
+    <input class="file-input" type="file" name="config" accept=".json,application/json">
+    <button class="primary" type="submit">Upload and restart</button>
+  </form>
+</div>
 </section>
 </main>
 <script>
@@ -97,6 +111,9 @@ bool WebManager::begin() {
 
 void WebManager::service() {
     server_.handleClient();
+    if (rebootPending_ && static_cast<int32_t>(millis() - rebootAtMs_) >= 0) {
+        ESP.restart();
+    }
 }
 
 void WebManager::updateSample(const SensorSample& sample, bool alertActive, DeviceState state) {
@@ -121,6 +138,8 @@ void WebManager::registerRoutes() {
     server_.on("/api/files", HTTP_GET, [this]() { sendFileList(); });
     server_.on("/download", HTTP_GET, [this]() { sendDownload(); });
     server_.on("/image", HTTP_GET, [this]() { sendImage(); });
+    server_.on("/config.json", HTTP_GET, [this]() { sendConfigDownload(); });
+    server_.on("/config.json", HTTP_POST, [this]() { finishConfigUpload(); }, [this]() { handleConfigUpload(); });
     server_.onNotFound([this]() { sendNotFound(); });
 }
 
@@ -291,6 +310,103 @@ void WebManager::sendImage() {
     }
     server_.streamFile(file, "image/jpeg");
     file.close();
+}
+
+void WebManager::sendConfigDownload() {
+    if (!SD.exists(kConfigPath)) {
+        server_.send(404, "text/plain", "config.json not found");
+        return;
+    }
+    File file = SD.open(kConfigPath, FILE_READ);
+    if (!file) {
+        server_.send(500, "text/plain", "Open failed");
+        return;
+    }
+    server_.sendHeader("Content-Disposition", "attachment; filename=\"config.json\"");
+    server_.streamFile(file, "application/json");
+    file.close();
+}
+
+void WebManager::handleConfigUpload() {
+    HTTPUpload& upload = server_.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+        configUploadOk_ = false;
+        configUploadError_.clear();
+        if (!Config.sdReady()) {
+            configUploadError_ = "SD card is not mounted";
+            return;
+        }
+        SD.remove(kConfigUploadPath);
+        configUploadFile_ = SD.open(kConfigUploadPath, FILE_WRITE);
+        if (!configUploadFile_) {
+            configUploadError_ = "Unable to create upload file";
+        }
+        return;
+    }
+
+    if (upload.status == UPLOAD_FILE_WRITE) {
+        if (configUploadFile_) {
+            const size_t written = configUploadFile_.write(upload.buf, upload.currentSize);
+            if (written != upload.currentSize) {
+                configUploadError_ = "Upload write failed";
+            }
+        }
+        return;
+    }
+
+    if (upload.status == UPLOAD_FILE_END) {
+        if (configUploadFile_) {
+            configUploadFile_.close();
+        }
+        if (configUploadError_.length() > 0) {
+            SD.remove(kConfigUploadPath);
+            return;
+        }
+
+        File file = SD.open(kConfigUploadPath, FILE_READ);
+        if (!file) {
+            configUploadError_ = "Uploaded file missing";
+            return;
+        }
+        JsonDocument doc;
+        const DeserializationError err = deserializeJson(doc, file);
+        file.close();
+        if (err) {
+            configUploadError_ = String("Invalid JSON: ") + err.c_str();
+            SD.remove(kConfigUploadPath);
+            return;
+        }
+
+        SD.remove(kConfigPath);
+        if (!SD.rename(kConfigUploadPath, kConfigPath)) {
+            configUploadError_ = "Unable to replace config.json";
+            SD.remove(kConfigUploadPath);
+            return;
+        }
+        configUploadOk_ = true;
+        return;
+    }
+
+    if (upload.status == UPLOAD_FILE_ABORTED) {
+        if (configUploadFile_) {
+            configUploadFile_.close();
+        }
+        SD.remove(kConfigUploadPath);
+        configUploadError_ = "Upload aborted";
+    }
+}
+
+void WebManager::finishConfigUpload() {
+    if (!configUploadOk_) {
+        const String error = configUploadError_.length() ? configUploadError_ : String("No config file uploaded");
+        configUploadOk_ = false;
+        server_.send(400, "text/plain", error);
+        return;
+    }
+    rebootPending_ = true;
+    rebootAtMs_ = millis() + 1000;
+    configUploadOk_ = false;
+    server_.send(200, "text/html", "<!doctype html><meta name=\"viewport\" content=\"width=device-width\"><body style=\"font-family:sans-serif;background:#121212;color:#f5f5f5\"><h1>Config uploaded</h1><p>The station is restarting so the new settings take effect.</p></body>");
 }
 
 void WebManager::sendNotFound() {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <FS.h>
 #include <WebServer.h>
 #include "app_types.h"
 
@@ -21,6 +22,9 @@ private:
     void sendFileList();
     void sendDownload();
     void sendImage();
+    void sendConfigDownload();
+    void handleConfigUpload();
+    void finishConfigUpload();
     void sendNotFound();
 
     Metric metricFromArg(const String& value) const;
@@ -37,9 +41,13 @@ private:
     bool wifiConnected_ = false;
     bool mqttConnected_ = false;
     DeviceState state_ = DeviceState::Active;
+    File configUploadFile_;
+    bool configUploadOk_ = false;
+    String configUploadError_;
+    bool rebootPending_ = false;
+    uint32_t rebootAtMs_ = 0;
 };
 
 extern WebManager Web;
 
 }  // namespace aq
-

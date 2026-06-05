@@ -15,7 +15,8 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 - Captures proximity-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 50 images.
 - Provides optional FTP access to the SD card when enabled in settings.
 - Tracks HVAC filter health by learning a particulate baseline and charting long-term PM2.5/PM10 deviation over days.
-- Hosts a built-in web dashboard from the device for phones and desktops, including live readings, charts, camera previews, and SD downloads.
+- Uses configurable alarm hysteresis, default 5%, so alerts do not flap when a reading hovers near the threshold.
+- Hosts a built-in web dashboard from the device for phones and desktops, including live readings, charts, camera previews, SD downloads, and `config.json` download/upload.
 
 ## UI Mockups
 
@@ -35,7 +36,7 @@ These are documentation-grade mockups generated from the current LVGL layout. Th
 
 The dashboard is the default screen after boot. It shows a compact top status bar with Wi-Fi, MQTT, SD, time, and device state. The large circular gauge focuses on PM2.5 as the primary pollutant signal, using the AQI tint color: green for good, amber for warning, and red for unhealthy.
 
-The right side uses six glass cards for CO2, temperature, humidity, VOC, NOx, and PM10. When an alarm condition is active, a red `SILENCE ALARM` banner appears across the bottom. The banner remains visible until air quality returns below the configured thresholds.
+The right side uses six glass cards for CO2, temperature, humidity, VOC, NOx, and PM10. When an alarm condition is active, a red `SILENCE ALARM` banner appears across the bottom. The banner remains visible until air quality returns below the configured clear threshold, which defaults to 5% below the alarm threshold.
 
 The speaker does not beep continuously. It chirps briefly when proximity/touch indicates someone has walked up to the station. A normal walk-up chirp is two soft notes; if an air-quality alert is active, the walk-up chirp becomes a short three-note urgent pattern. A 30-second cooldown prevents repeated chirps while someone remains nearby.
 
@@ -61,6 +62,12 @@ The `Baseline` button starts a new HVAC filter baseline capture. By default, the
 
 The bottom row shows the five newest camera entries from `/cam`. Tapping an entry opens a full-screen JPEG preview using the CoreS3 display. The camera manager keeps up to 50 timestamped JPEG captures and removes the oldest files during rotation.
 
+### Screen 5: Maintenance
+
+The maintenance screen is read-only and intended for field checks. It shows current Wi-Fi connection state, IP address, subnet, gateway, RSSI, configured SSID/password status, MQTT target, timezone, SD card usage, SEN66 online/measuring/warmup state, sample/error counters, last success/error timestamps, and the current alarm thresholds plus hysteresis.
+
+This screen deliberately does not expose editing controls. Configuration changes are still made through `/config.json` on the SD card or through the web dashboard config upload flow.
+
 ## HVAC Filter Baseline Logic
 
 This feature is designed to avoid short-term false positives. A dirty HVAC filter is treated as a slow trend, not a single bad reading.
@@ -76,6 +83,8 @@ This makes the analysis resistant to brief events such as cooking, cleaning, can
 The filter baseline is persisted in `/config.json`:
 
 ```json
+"timezone": "CST6CDT,M3.2.0,M11.1.0",
+"alarm_hysteresis_percent": 5.0,
 "filter_baseline": {
   "active": false,
   "ready": true,
@@ -108,6 +117,7 @@ Web dashboard features:
 - History chart modes: `24 Hours`, `30 Days`, and `Filter`.
 - Download browser for `/log` binary records, `/alerts.log`, and `/cam` JPEG captures.
 - Camera-roll thumbnails with full-size JPEG links.
+- `config.json` download/upload. Uploaded JSON is validated, written to SD, and the station restarts so new settings take effect.
 
 Local HTTP endpoints:
 
@@ -118,6 +128,8 @@ Local HTTP endpoints:
 - `GET /api/files?dir=/cam` lists camera images.
 - `GET /download?path=/log/YYYYMMDD.dat` downloads SD files.
 - `GET /image?path=/cam/pic_YYYYMMDD_HHMMSS.jpg` streams a JPEG preview.
+- `GET /config.json` downloads the active configuration file.
+- `POST /config.json` uploads a replacement configuration file and restarts the station after validation.
 
 The web dashboard is intended for trusted LAN use. It currently has no authentication layer, so do not port-forward it directly to the public internet.
 
@@ -150,9 +162,9 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - `config.*`: SD init, `/config.json`, directory creation.
 - `sensor_manager.*`: SEN66 init, warmup, standby, averaged reads, CO2 calibration.
 - `logger.*`: 24-byte daily binary records, 48-byte hourly summaries, downsampled history reads, alert log.
-- `ui_manager.*`: LVGL dark glass UI, swipe screens, dashboard, chart, event log, settings/camera roll.
+- `ui_manager.*`: LVGL dark glass UI, swipe screens, dashboard, chart, event log, settings/camera roll, maintenance diagnostics.
 - `audio_manager.*`: M5Unified I2S one-shot walk-up chirps and mute behavior.
 - `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 50-file rotation.
 - `ftp_manager.*`: SimpleFTPServer wrapper.
-- `web_manager.*`: Device-hosted dashboard, live/history APIs, and SD file/image downloads.
+- `web_manager.*`: Device-hosted dashboard, live/history APIs, SD file/image downloads, and config download/upload.
 - `main.cpp`: FreeRTOS acquisition/network tasks, alarm state, UI service loop, light-sleep handling.

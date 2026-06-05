@@ -20,6 +20,7 @@ public:
     void plotFilterDeviation(const HistoryPoint* points, size_t count, const FilterDeviationSummary& summary);
     void updateCameraRoll(const String* paths, size_t count);
     void updateBaselineStatus(const AppSettings& settings);
+    void updateMaintenance(const String& text);
     bool silenceRequested();
     bool brightnessChanged(uint8_t& value);
     bool volumeChanged(uint8_t& value);
@@ -54,7 +55,8 @@ private:
     lv_style_t styleMetric_;
     lv_style_t styleAlarm_;
 
-    lv_obj_t* screens_[4] = {nullptr, nullptr, nullptr, nullptr};
+    static constexpr uint8_t kScreenCount = 5;
+    lv_obj_t* screens_[kScreenCount] = {nullptr, nullptr, nullptr, nullptr, nullptr};
     lv_obj_t* statusLabel_ = nullptr;
     lv_obj_t* primaryArc_ = nullptr;
     lv_obj_t* primaryValue_ = nullptr;
@@ -69,6 +71,7 @@ private:
     lv_obj_t* volumeSlider_ = nullptr;
     lv_obj_t* ftpSwitch_ = nullptr;
     lv_obj_t* baselineStatusLabel_ = nullptr;
+    lv_obj_t* maintenanceLabel_ = nullptr;
     lv_obj_t* cameraRollLabels_[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
     String cameraRollPaths_[5];
 

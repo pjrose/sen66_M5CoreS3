@@ -83,6 +83,8 @@ bool ConfigManager::load() {
     settings_.alarmCo2Ppm = doc["alarm_co2_ppm"] | settings_.alarmCo2Ppm;
     settings_.alarmPm25 = doc["alarm_pm25_ugm3"] | settings_.alarmPm25;
     settings_.alarmVoc = doc["alarm_voc_index"] | settings_.alarmVoc;
+    settings_.alarmHysteresisPercent = doc["alarm_hysteresis_percent"] | settings_.alarmHysteresisPercent;
+    settings_.timezone = doc["timezone"] | settings_.timezone;
     settings_.buzzerVolume = doc["buzzer_volume"] | settings_.buzzerVolume;
     settings_.brightness = doc["brightness"] | settings_.brightness;
     settings_.proximityThreshold = doc["proximity_threshold"] | settings_.proximityThreshold;
@@ -121,6 +123,8 @@ bool ConfigManager::save() const {
     doc["alarm_co2_ppm"] = settings_.alarmCo2Ppm;
     doc["alarm_pm25_ugm3"] = settings_.alarmPm25;
     doc["alarm_voc_index"] = settings_.alarmVoc;
+    doc["alarm_hysteresis_percent"] = settings_.alarmHysteresisPercent;
+    doc["timezone"] = settings_.timezone;
     doc["buzzer_volume"] = settings_.buzzerVolume;
     doc["brightness"] = settings_.brightness;
     doc["proximity_threshold"] = settings_.proximityThreshold;
