@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <driver/gpio.h>
 #include <esp_sleep.h>
+#include <ESPmDNS.h>
 #include <time.h>
 
 #include "audio_manager.h"
@@ -14,6 +15,7 @@
 #include "logger.h"
 #include "sensor_manager.h"
 #include "ui_manager.h"
+#include "web_manager.h"
 
 using namespace aq;
 
@@ -149,12 +151,15 @@ void queueMqttPayload(const String& payload) {
 }
 
 void updateLatestSample(const SensorSample& sample) {
+    bool alertNow = false;
     if (xSemaphoreTake(sampleMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         latestSample = sample;
         latestSampleReady = true;
         alertActive = sampleTriggersAlarm(sample);
+        alertNow = alertActive;
         xSemaphoreGive(sampleMutex);
     }
+    Web.updateSample(sample, alertNow, state);
 }
 
 void refreshChart() {
@@ -238,6 +243,7 @@ void serviceFilterBaselineCapture() {
 void serviceNetwork(void*) {
     uint32_t lastWifiAttempt = 0;
     uint32_t lastMqttAttempt = 0;
+    bool mdnsStarted = false;
 
     WiFi.mode(WIFI_STA);
     mqtt.setKeepAlive(15);
@@ -253,6 +259,11 @@ void serviceNetwork(void*) {
         }
 
         if (WiFi.status() == WL_CONNECTED) {
+            if (!mdnsStarted && MDNS.begin("core-air")) {
+                MDNS.addService("http", "tcp", 80);
+                mdnsStarted = true;
+            }
+
             if (lastNtpSyncMs == 0 || nowMs - lastNtpSyncMs > kNtpRefreshMs) {
                 configTime(0, 0, "pool.ntp.org", "time.nist.gov");
                 lastNtpSyncMs = nowMs;
@@ -272,6 +283,9 @@ void serviceNetwork(void*) {
                 }
                 xSemaphoreGive(mqttMutex);
             }
+        } else if (mdnsStarted) {
+            MDNS.end();
+            mdnsStarted = false;
         }
 
         vTaskDelay(pdMS_TO_TICKS(250));
@@ -420,6 +434,7 @@ void paintStatusAndSample() {
     if (xSemaphoreTake(sampleMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
         if (latestSampleReady) {
             Ui.updateSample(latestSample);
+            Web.updateSample(latestSample, alertActive, state);
         }
         Audio.setAlarmActive(alertActive);
         Audio.resetMuteIfClear(alertActive);
@@ -428,6 +443,7 @@ void paintStatusAndSample() {
     }
 
     Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
+    Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
     Ui.updateBaselineStatus(Config.settings());
 }
 
@@ -450,6 +466,7 @@ void setup() {
     Audio.begin(Config.settings().buzzerVolume);
     Ui.begin(Config.settings());
     Ftp.begin(Config.settings());
+    Web.begin();
     configureProximitySensor(Config.settings());
     Sensors.begin(Wire);
     Camera.begin();
@@ -467,6 +484,7 @@ void loop() {
     M5.update();
     Ui.tick();
     Ftp.service();
+    Web.service();
     Audio.service(millis());
     applyUiControls();
     serviceFilterBaselineCapture();

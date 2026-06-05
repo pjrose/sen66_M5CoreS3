@@ -15,6 +15,7 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 - Captures proximity-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 50 images.
 - Provides optional FTP access to the SD card when enabled in settings.
 - Tracks HVAC filter health by learning a particulate baseline and charting long-term PM2.5/PM10 deviation over days.
+- Hosts a built-in web dashboard from the device for phones and desktops, including live readings, charts, camera previews, and SD downloads.
 
 ## UI Mockups
 
@@ -87,6 +88,39 @@ The filter baseline is persisted in `/config.json`:
 }
 ```
 
+## Device-Hosted Web Dashboard
+
+The firmware includes a web dashboard served directly from the CoreS3. No separate web app, cloud service, or external host is required.
+
+After the device joins Wi-Fi, open one of these from a phone or desktop on the same network:
+
+```text
+http://core-air.local/
+http://<device-ip>/
+```
+
+The dashboard mirrors the on-device visual language: dark background, glass-style cards, AQI tinting, a PM2.5 primary gauge, metric cards, history chart tabs, and camera/log download panels.
+
+Web dashboard features:
+
+- Live PM2.5, PM10, CO2, VOC, NOx, temperature, and humidity.
+- Device status: Wi-Fi, MQTT, SD, current firmware state, and IP address.
+- History chart modes: `24 Hours`, `30 Days`, and `Filter`.
+- Download browser for `/log` binary records, `/alerts.log`, and `/cam` JPEG captures.
+- Camera-roll thumbnails with full-size JPEG links.
+
+Local HTTP endpoints:
+
+- `GET /` serves the responsive dashboard.
+- `GET /api/live` returns live JSON readings and device status.
+- `GET /api/history?mode=day|month|filter&metric=pm25` returns chart points.
+- `GET /api/files?dir=/log` lists log files and `alerts.log`.
+- `GET /api/files?dir=/cam` lists camera images.
+- `GET /download?path=/log/YYYYMMDD.dat` downloads SD files.
+- `GET /image?path=/cam/pic_YYYYMMDD_HHMMSS.jpg` streams a JPEG preview.
+
+The web dashboard is intended for trusted LAN use. It currently has no authentication layer, so do not port-forward it directly to the public internet.
+
 ## Build
 
 Install PlatformIO, then run:
@@ -120,4 +154,5 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - `audio_manager.*`: M5Unified I2S one-shot walk-up chirps and mute behavior.
 - `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 50-file rotation.
 - `ftp_manager.*`: SimpleFTPServer wrapper.
+- `web_manager.*`: Device-hosted dashboard, live/history APIs, and SD file/image downloads.
 - `main.cpp`: FreeRTOS acquisition/network tasks, alarm state, UI service loop, light-sleep handling.
