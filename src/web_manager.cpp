@@ -105,12 +105,13 @@ String jsonEscape(const String& value) {
 bool WebManager::begin() {
     mutex_ = xSemaphoreCreateMutex();
     registerRoutes();
-    server_.begin();
     return true;
 }
 
 void WebManager::service() {
-    server_.handleClient();
+    if (serverStarted_) {
+        server_.handleClient();
+    }
     if (rebootPending_ && static_cast<int32_t>(millis() - rebootAtMs_) >= 0) {
         ESP.restart();
     }
@@ -129,6 +130,13 @@ void WebManager::updateSample(const SensorSample& sample, bool alertActive, Devi
 void WebManager::updateNetwork(bool wifiConnected, bool mqttConnected) {
     wifiConnected_ = wifiConnected;
     mqttConnected_ = mqttConnected;
+    if (wifiConnected_ && !serverStarted_) {
+        server_.begin();
+        serverStarted_ = true;
+    } else if (!wifiConnected_ && serverStarted_) {
+        server_.stop();
+        serverStarted_ = false;
+    }
 }
 
 void WebManager::registerRoutes() {

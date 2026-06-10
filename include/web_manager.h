@@ -41,6 +41,7 @@ private:
     bool wifiConnected_ = false;
     bool mqttConnected_ = false;
     DeviceState state_ = DeviceState::Active;
+    bool serverStarted_ = false;
     File configUploadFile_;
     bool configUploadOk_ = false;
     String configUploadError_;
