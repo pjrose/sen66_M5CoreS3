@@ -135,6 +135,8 @@ The web dashboard is intended for trusted LAN use. It currently has no authentic
 
 ## Build
 
+For a beginner-friendly walkthrough with checks at each step, open [docs/platformio_setup_guide.html](docs/platformio_setup_guide.html).
+
 Install PlatformIO, then run:
 
 ```powershell

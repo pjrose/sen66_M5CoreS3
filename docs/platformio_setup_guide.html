@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CoreS3-Lite Air Station PlatformIO Setup Guide</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --panel: #202020;
+      --panel-2: #2a2a2a;
+      --line: #474747;
+      --text: #f5f5f5;
+      --muted: #b8b8b8;
+      --good: #00e676;
+      --warn: #ffd600;
+      --bad: #ff1744;
+      --code: #0b0b0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 20% 0, #1d2722 0, var(--bg) 42%, #090909 100%);
+      color: var(--text);
+      font: 16px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(18, 18, 18, 0.92);
+      backdrop-filter: blur(10px);
+    }
+
+    .wrap {
+      width: min(1040px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      padding: 36px 0 28px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 5vw, 48px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    main {
+      padding: 28px 0 48px;
+    }
+
+    nav {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    nav a, .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    section {
+      margin: 18px 0;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(32, 32, 32, 0.78);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+    }
+
+    h2 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 22px 0 8px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0 12px;
+    }
+
+    ul, ol {
+      padding-left: 24px;
+    }
+
+    li {
+      margin: 8px 0;
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 5px;
+      background: var(--code);
+      color: #ffffff;
+      font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      font-size: 0.94em;
+    }
+
+    pre {
+      overflow-x: auto;
+      margin: 12px 0;
+      padding: 14px;
+      border: 1px solid #303030;
+      border-radius: 8px;
+      background: var(--code);
+    }
+
+    pre code {
+      padding: 0;
+      background: transparent;
+      font-size: 14px;
+    }
+
+    .check {
+      border-left: 4px solid var(--good);
+      background: rgba(0, 230, 118, 0.08);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+    }
+
+    .warn {
+      border-left: 4px solid var(--warn);
+      background: rgba(255, 214, 0, 0.08);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+    }
+
+    .bad {
+      border-left: 4px solid var(--bad);
+      background: rgba(255, 23, 68, 0.08);
+      padding: 12px 14px;
+      border-radius: 6px;
+      margin: 12px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      overflow: hidden;
+      border-radius: 8px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--panel-2);
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 14px;
+      padding: 20px 0 36px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap hero">
+      <h1>CoreS3-Lite Air Station Setup Guide</h1>
+      <p class="subtitle">Step-by-step PlatformIO setup, build, upload, and first-boot checks for the SEN66 air-quality station firmware.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav aria-label="Guide sections">
+      <a href="#what-you-need">What You Need</a>
+      <a href="#install">Install PlatformIO</a>
+      <a href="#open">Open The Project</a>
+      <a href="#build">Build</a>
+      <a href="#upload">Upload</a>
+      <a href="#configure">Configure Wi-Fi</a>
+      <a href="#dashboard">Web Dashboard</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+    </nav>
+
+    <section id="what-you-need">
+      <h2>1. What You Need</h2>
+      <ul>
+        <li>M5Stack CoreS3-Lite.</li>
+        <li>Sensirion SEN66 connected to Grove Port A through the Adafruit 6331 breakout.</li>
+        <li>USB-C data cable. Some USB-C cables only charge and will not work for programming.</li>
+        <li>microSD card formatted as FAT32.</li>
+        <li>Windows PC with VS Code and PlatformIO.</li>
+      </ul>
+
+      <div class="check">
+        <strong>Hardware check:</strong> Grove Port A uses SDA GPIO 2 and SCL GPIO 1. The SEN66 I2C address is <code>0x6B</code>. Grove VCC is 5 V, so feed it into the Adafruit breakout input and let the breakout regulator power the SEN66 at 3.3 V.
+      </div>
+    </section>
+
+    <section id="install">
+      <h2>2. Install PlatformIO</h2>
+      <ol>
+        <li>Install Visual Studio Code.</li>
+        <li>Open VS Code.</li>
+        <li>Open the Extensions panel.</li>
+        <li>Search for <code>PlatformIO IDE</code>.</li>
+        <li>Install the official PlatformIO extension.</li>
+        <li>Restart VS Code if it asks.</li>
+      </ol>
+
+      <h3>Check PlatformIO From PowerShell</h3>
+      <p>Open a new PowerShell terminal and run:</p>
+      <pre><code>pio --version</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> You should see something like <code>PlatformIO Core, version 6.1.19</code>. A newer version is usually fine.
+      </div>
+
+      <div class="warn">
+        <strong>If PowerShell says <code>pio</code> is not recognized:</strong> close and reopen VS Code, then try again from the VS Code terminal. If it still fails, open the PlatformIO extension page once and let it finish installing PlatformIO Core.
+      </div>
+    </section>
+
+    <section id="open">
+      <h2>3. Open The Firmware Project</h2>
+      <p>In VS Code, choose <code>File &gt; Open Folder</code> and open this folder:</p>
+      <pre><code>C:\Users\pjros\Documents\Codex\2026-06-05\technical-implementation-prompt-premium-air-quality\outputs\air_quality_station</code></pre>
+
+      <p>You should see these files and folders:</p>
+      <pre><code>platformio.ini
+src/
+include/
+docs/
+README.md</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> PlatformIO should notice <code>platformio.ini</code>. The PlatformIO sidebar icon should appear in VS Code.
+      </div>
+    </section>
+
+    <section id="configuration">
+      <h2>4. Confirm The PlatformIO Configuration</h2>
+      <p>Open <code>platformio.ini</code>. The important target settings are:</p>
+      <pre><code>[env:m5stack-cores3-lite]
+platform = espressif32
+board = m5stack-cores3
+framework = arduino
+board_build.flash_size = 16MB
+board_build.partitions = default_16MB.csv
+board_build.arduino.memory_type = qio_opi
+board_build.psram_type = opi</code></pre>
+
+      <p>The environment name is <code>m5stack-cores3-lite</code>. The board definition is <code>m5stack-cores3</code> because PlatformIO uses the standard CoreS3 board profile for this hardware family.</p>
+
+      <div class="check">
+        <strong>Expected:</strong> You do not need to manually install each Arduino library. PlatformIO reads <code>lib_deps</code> and downloads the required libraries during the first build.
+      </div>
+    </section>
+
+    <section id="build">
+      <h2>5. Build The Firmware</h2>
+      <p>Open a VS Code terminal and run:</p>
+      <pre><code>cd "C:\Users\pjros\Documents\Codex\2026-06-05\technical-implementation-prompt-premium-air-quality\outputs\air_quality_station"
+$env:PYTHONIOENCODING='utf-8'
+$env:PYTHONUTF8='1'
+pio run</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> The build ends with <code>[SUCCESS]</code>. The final verification run for this repo completed successfully with about 35.8% RAM and 22.0% flash used.
+      </div>
+
+      <p>The UTF-8 environment variables avoid a Windows console encoding issue that can happen while PlatformIO prints dependency information.</p>
+    </section>
+
+    <section id="upload">
+      <h2>6. Connect And Upload To The CoreS3-Lite</h2>
+      <ol>
+        <li>Plug the CoreS3-Lite into USB.</li>
+        <li>Use a USB-C data cable.</li>
+        <li>Wait a few seconds for Windows to detect the board.</li>
+      </ol>
+
+      <h3>Find The Serial Port</h3>
+      <pre><code>pio device list</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> You should see a COM port, such as <code>COM5</code>. The number may be different on your PC.
+      </div>
+
+      <h3>Upload Automatically</h3>
+      <pre><code>pio run --target upload</code></pre>
+
+      <h3>Upload To A Specific Port</h3>
+      <p>If PlatformIO cannot choose the port automatically, replace <code>COM5</code> with the port from <code>pio device list</code>:</p>
+      <pre><code>pio run --target upload --upload-port COM5</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> Upload output should include <code>Hash of data verified</code>, <code>Leaving...</code>, and <code>[SUCCESS]</code>.
+      </div>
+
+      <div class="warn">
+        <strong>If upload gets stuck at connecting:</strong> hold the CoreS3 boot/download button while PlatformIO says <code>Connecting...</code>, then release when flashing starts.
+      </div>
+    </section>
+
+    <section id="monitor">
+      <h2>7. Open The Serial Monitor</h2>
+      <p>After upload, open the monitor:</p>
+      <pre><code>pio device monitor</code></pre>
+
+      <p>Or specify the port:</p>
+      <pre><code>pio device monitor --port COM5</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> The monitor uses <code>115200</code> baud from <code>platformio.ini</code>. Press <code>Ctrl+C</code> to exit.
+      </div>
+    </section>
+
+    <section id="sd-card">
+      <h2>8. Prepare The microSD Card</h2>
+      <ol>
+        <li>Format the microSD card as FAT32.</li>
+        <li>Insert it into the CoreS3-Lite.</li>
+        <li>Boot the device.</li>
+      </ol>
+
+      <p>On first boot, the firmware creates:</p>
+      <pre><code>/config.json
+/log/
+/cam/</code></pre>
+
+      <div class="check">
+        <strong>Expected:</strong> The maintenance screen should report that SD is mounted. The web dashboard and FTP can also be used to inspect files later.
+      </div>
+    </section>
+
+    <section id="configure">
+      <h2>9. Configure Wi-Fi</h2>
+      <p>Edit <code>/config.json</code> on the SD card and set your network name and password:</p>
+      <pre><code>{
+  "wifi_ssid": "YourNetworkName",
+  "wifi_password": "YourPassword",
+  "timezone": "CST6CDT,M3.2.0,M11.1.0",
+  "alarm_hysteresis_percent": 5.0
+}</code></pre>
+
+      <p>You do not need to remove the other config fields. This snippet only shows the fields most people edit first.</p>
+
+      <div class="check">
+        <strong>Expected:</strong> After reboot, the maintenance screen should show <code>Connected: yes</code>, an IP address, subnet, gateway, and RSSI.
+      </div>
+    </section>
+
+    <section id="dashboard">
+      <h2>10. Open The Device Web Dashboard</h2>
+      <p>Once Wi-Fi is connected, open one of these from a phone or desktop on the same network:</p>
+      <pre><code>http://core-air.local/
+http://&lt;device-ip&gt;/</code></pre>
+
+      <p>The dashboard shows live readings, charts, file downloads, camera images, and <code>config.json</code> download/upload.</p>
+
+      <div class="check">
+        <strong>Expected:</strong> The dashboard should show Wi-Fi status, MQTT status, SD status, current firmware state, IP address, and live SEN66 readings once the sensor has warmed up.
+      </div>
+
+      <div class="warn">
+        <strong>Security note:</strong> The dashboard is for trusted local networks. Do not port-forward it to the public internet.
+      </div>
+    </section>
+
+    <section id="commands">
+      <h2>Common PlatformIO Commands</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Command</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Build firmware</td>
+            <td><code>pio run</code></td>
+          </tr>
+          <tr>
+            <td>Upload firmware</td>
+            <td><code>pio run --target upload</code></td>
+          </tr>
+          <tr>
+            <td>List serial devices</td>
+            <td><code>pio device list</code></td>
+          </tr>
+          <tr>
+            <td>Open serial monitor</td>
+            <td><code>pio device monitor</code></td>
+          </tr>
+          <tr>
+            <td>Clean build output</td>
+            <td><code>pio run --target clean</code></td>
+          </tr>
+          <tr>
+            <td>Clean rebuild</td>
+            <td><code>pio run --target clean</code><br><code>pio run</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="troubleshooting">
+      <h2>Troubleshooting</h2>
+
+      <h3>No COM Port Appears</h3>
+      <ul>
+        <li>Try another USB-C cable.</li>
+        <li>Try another USB port.</li>
+        <li>Disconnect and reconnect the CoreS3-Lite.</li>
+        <li>Run <code>pio device list</code> again.</li>
+      </ul>
+
+      <h3>Build Fails While Downloading Packages</h3>
+      <ul>
+        <li>Check DNS and internet access.</li>
+        <li>Run <code>pio run</code> again after the connection is fixed.</li>
+        <li>If package folders are half-created, run <code>pio run --target clean</code> and then <code>pio run</code>.</li>
+      </ul>
+
+      <h3>Upload Fails At Connecting</h3>
+      <ul>
+        <li>Hold the boot/download button during the <code>Connecting...</code> message.</li>
+        <li>Release when flashing begins.</li>
+        <li>Try a lower upload speed by changing <code>upload_speed</code> in <code>platformio.ini</code> if needed.</li>
+      </ul>
+
+      <h3>Device Boots But Wi-Fi Does Not Connect</h3>
+      <ul>
+        <li>Check <code>wifi_ssid</code> and <code>wifi_password</code> in <code>/config.json</code>.</li>
+        <li>Make sure the network is 2.4 GHz or compatible with ESP32-S3 Wi-Fi.</li>
+        <li>Use the maintenance screen to check connection state and IP address.</li>
+      </ul>
+
+      <h3>SEN66 Does Not Report Data</h3>
+      <ul>
+        <li>Confirm SDA is GPIO 2 and SCL is GPIO 1.</li>
+        <li>Confirm the Adafruit breakout is powered from Grove 5 V and regulating to 3.3 V for the SEN66.</li>
+        <li>Allow the SEN66 warmup period. Stable readings can take a couple minutes after startup.</li>
+        <li>Check the maintenance screen for SEN66 errors and sample counters.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="wrap footer">
+    <p>Generated for the CoreS3-Lite SEN66 air-quality station PlatformIO project. This guide assumes the repo's current <code>platformio.ini</code> and Windows PowerShell commands.</p>
+  </footer>
+</body>
+</html>
