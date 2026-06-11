@@ -126,9 +126,9 @@ void UiManager::eventCb(lv_event_t* e) {
         case 4: Ui.showScreen(3, true); break;
         case 5: Ui.showScreen(4, true); break;
         case 10: Ui.silenceRequested_ = true; break;
-        case 20: Ui.monthMode_ = false; Ui.filterChartMode_ = false; break;
-        case 21: Ui.monthMode_ = true; Ui.filterChartMode_ = false; break;
-        case 22: Ui.filterChartMode_ = true; break;
+        case 20: Ui.monthMode_ = false; Ui.filterChartMode_ = false; Ui.chartModeChanged_ = true; break;
+        case 21: Ui.monthMode_ = true; Ui.filterChartMode_ = false; Ui.chartModeChanged_ = true; break;
+        case 22: Ui.filterChartMode_ = true; Ui.chartModeChanged_ = true; break;
         case 23:
             if (Ui.eventList_) {
                 lv_obj_scroll_to_y(Ui.eventList_, std::max<int32_t>(0, lv_obj_get_scroll_y(Ui.eventList_) - 54), LV_ANIM_ON);
@@ -315,7 +315,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_size(dayBtn, 88, 30);
     lv_obj_add_event_cb(dayBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(20));
     lv_obj_t* dayLabel = lv_label_create(dayBtn);
-    lv_label_set_text(dayLabel, "24 Hours");
+    lv_label_set_text(dayLabel, "24h PM");
     lv_obj_center(dayLabel);
 
     lv_obj_t* monthBtn = lv_btn_create(screens_[1]);
@@ -323,7 +323,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_size(monthBtn, 88, 30);
     lv_obj_add_event_cb(monthBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(21));
     lv_obj_t* monthLabel = lv_label_create(monthBtn);
-    lv_label_set_text(monthLabel, "30 Days");
+    lv_label_set_text(monthLabel, "30d Avg");
     lv_obj_center(monthLabel);
 
     lv_obj_t* filterBtn = lv_btn_create(screens_[1]);
@@ -331,12 +331,13 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_size(filterBtn, 88, 30);
     lv_obj_add_event_cb(filterBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(22));
     lv_obj_t* filterLabel = lv_label_create(filterBtn);
-    lv_label_set_text(filterLabel, "Filter");
+    lv_label_set_text(filterLabel, "Filter %");
     lv_obj_center(filterLabel);
 
     lv_obj_t* debugTitle = lv_label_create(screens_[2]);
     lv_obj_set_pos(debugTitle, 8, 6);
-    lv_obj_set_style_text_font(debugTitle, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(debugTitle, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(debugTitle, lv_color_hex(0xFFFFFF), 0);
     lv_label_set_text(debugTitle, "Debug");
 
     lv_obj_t* debugDivider = lv_obj_create(screens_[2]);
@@ -356,7 +357,8 @@ void UiManager::createScreens(const AppSettings& settings) {
 
     lv_obj_t* alarmTitle = lv_label_create(screens_[2]);
     lv_obj_set_pos(alarmTitle, 8, 74);
-    lv_obj_set_style_text_font(alarmTitle, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(alarmTitle, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(alarmTitle, lv_color_hex(0xFFFFFF), 0);
     lv_label_set_text(alarmTitle, "Alarms");
 
     lv_obj_t* alarmDivider = lv_obj_create(screens_[2]);
@@ -708,6 +710,84 @@ bool UiManager::baselineResetRequested() {
 
 void UiManager::goToScreen(uint8_t index, bool animate) {
     showScreen(index, animate);
+}
+
+bool UiManager::handleRawTouch(int16_t x, int16_t y) {
+    if (x < 0 || y < 0) {
+        return false;
+    }
+
+    if (y >= 198) {
+        const uint8_t target = static_cast<uint8_t>(std::min(4, std::max(0, x / 64)));
+        showScreen(target, true);
+        return true;
+    }
+
+    if (currentScreen_ == 1 && y >= 158 && y <= 196) {
+        if (x < 100) {
+            monthMode_ = false;
+            filterChartMode_ = false;
+        } else if (x < 196) {
+            monthMode_ = true;
+            filterChartMode_ = false;
+        } else {
+            filterChartMode_ = true;
+        }
+        chartModeChanged_ = true;
+        return true;
+    }
+
+    if (currentScreen_ == 2 && x >= 238) {
+        if (y >= 94 && y < 146) {
+            lv_obj_scroll_to_y(eventList_, std::max<int32_t>(0, lv_obj_get_scroll_y(eventList_) - 54), LV_ANIM_ON);
+            return true;
+        }
+        if (y >= 146 && y < 198) {
+            lv_obj_scroll_to_y(eventList_, lv_obj_get_scroll_y(eventList_) + 54, LV_ANIM_ON);
+            return true;
+        }
+    }
+
+    if (currentScreen_ == 3) {
+        if (y >= 16 && y < 48) {
+            const int mapped = map(constrain(x, 38, 282), 38, 282, 16, 255);
+            lv_slider_set_value(brightnessSlider_, mapped, LV_ANIM_OFF);
+            brightnessChanged_ = true;
+            return true;
+        }
+        if (y >= 50 && y < 84) {
+            const int mapped = map(constrain(x, 38, 282), 38, 282, 0, 255);
+            lv_slider_set_value(volumeSlider_, mapped, LV_ANIM_OFF);
+            volumeChanged_ = true;
+            return true;
+        }
+        if (y >= 86 && y < 120) {
+            ftpEnabled_ = !ftpEnabled_;
+            if (ftpEnabled_) {
+                lv_obj_add_state(ftpSwitch_, LV_STATE_CHECKED);
+            } else {
+                lv_obj_clear_state(ftpSwitch_, LV_STATE_CHECKED);
+            }
+            ftpChanged_ = true;
+            return true;
+        }
+        if (y >= 120 && y < 164) {
+            if (x < 156) {
+                baselineResetRequested_ = true;
+            } else {
+                calibrationRequested_ = true;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool UiManager::chartModeChanged() {
+    const bool value = chartModeChanged_;
+    chartModeChanged_ = false;
+    return value;
 }
 
 lv_color_t UiManager::aqiColor(const SensorSample& sample) const {

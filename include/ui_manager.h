@@ -29,9 +29,12 @@ public:
     bool calibrationRequested();
     bool baselineResetRequested();
     void goToScreen(uint8_t index, bool animate = true);
+    bool handleRawTouch(int16_t x, int16_t y);
+    bool chartModeChanged();
     Metric selectedMetric() const { return selectedMetric_; }
     bool monthMode() const { return monthMode_; }
     bool filterChartMode() const { return filterChartMode_; }
+    uint8_t currentScreen() const { return currentScreen_; }
 
 private:
     static void flushCb(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* colorP);
@@ -88,6 +91,7 @@ private:
     bool ftpChanged_ = false;
     bool calibrationRequested_ = false;
     bool baselineResetRequested_ = false;
+    bool chartModeChanged_ = false;
     bool ftpEnabled_ = false;
     uint8_t currentScreen_ = 0;
     Metric selectedMetric_ = Metric::Pm25;

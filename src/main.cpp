@@ -29,6 +29,7 @@ constexpr uint32_t kStatusPaintMs = 1000;
 constexpr uint32_t kChartRefreshMs = 30000;
 constexpr uint32_t kNetworkRetryMs = 10000;
 constexpr uint32_t kNtpRefreshMs = 24UL * 60UL * 60UL * 1000UL;
+constexpr bool kRandomAlarmTestMode = true;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
@@ -50,6 +51,8 @@ uint32_t lastBaselineCheckMs = 0;
 uint32_t lastHeartbeatMs = 0;
 uint32_t lastTouchLogMs = 0;
 uint32_t lastTouchNavMs = 0;
+uint32_t nextRandomAlarmTestMs = 0;
+uint32_t randomAlarmTestCount = 0;
 volatile uint32_t loopCounter = 0;
 volatile bool sampleDirty = false;
 volatile bool debugLineDirty = false;
@@ -487,6 +490,10 @@ void applyUiControls() {
     if (!uiReady) {
         return;
     }
+    if (Ui.chartModeChanged()) {
+        refreshChart();
+        lastChartRefreshMs = millis();
+    }
     uint8_t value = 0;
     if (Ui.brightnessChanged(value)) {
         Config.settings().brightness = value;
@@ -523,9 +530,10 @@ void handleDisplayPower() {
     const bool touched = M5.Touch.getDetail().isPressed();
     const bool nearby = personDetected();
     const bool walkup = nearby && !wasPersonNearby;
+    const bool wakeFromDim = touched && displayDimmed;
     wasPersonNearby = nearby;
 
-    if ((walkup || touched) && millis() - lastWalkupChirpMs > 30000UL) {
+    if ((walkup || wakeFromDim) && millis() - lastWalkupChirpMs > 30000UL) {
         Audio.chirp(alertActive);
         lastWalkupChirpMs = millis();
     }
@@ -592,14 +600,8 @@ void serviceRawTouchDiagnostics() {
         lastTouchNavMs = nowMs;
         const int x = pressed ? detail.x : directTouch.x;
         const int y = pressed ? detail.y : directTouch.y;
-        if (uiReady && x >= 0 && y >= 0) {
-            // Raw fallback for the bottom nav strip. This runs outside LVGL so it
-            // still helps when the touch rotation is not yet mapped correctly.
-            if (y >= 198) {
-                const uint8_t target = static_cast<uint8_t>(std::min(4, std::max(0, x / 64)));
-                logf("Touch raw nav target=%u", target);
-                Ui.goToScreen(target, true);
-            }
+        if (uiReady && Ui.handleRawTouch(x, y)) {
+            logf("Touch raw action: screen=%u x=%d y=%d", Ui.currentScreen(), x, y);
         }
     }
 }
@@ -647,6 +649,29 @@ void paintStatusAndSample() {
         Ui.updateBaselineStatus(Config.settings());
         Ui.updateMaintenance(maintenanceText());
     }
+}
+
+void serviceRandomAlarmTest() {
+    if (!kRandomAlarmTestMode || !uiReady) {
+        return;
+    }
+    const uint32_t nowMs = millis();
+    if (nextRandomAlarmTestMs == 0) {
+        nextRandomAlarmTestMs = nowMs + static_cast<uint32_t>(random(1000, 10001));
+        logLine("TEST MODE: random alarms enabled every 1-10 seconds");
+        return;
+    }
+    if (static_cast<int32_t>(nowMs - nextRandomAlarmTestMs) < 0) {
+        return;
+    }
+
+    randomAlarmTestCount++;
+    const String msg = "TEST Random Alarm #" + String(randomAlarmTestCount);
+    Ui.addEvent(msg);
+    Logger.appendAlert(msg, static_cast<uint32_t>(time(nullptr)));
+    Audio.chirp(true);
+    logLine(msg);
+    nextRandomAlarmTestMs = nowMs + static_cast<uint32_t>(random(1000, 10001));
 }
 
 void serviceWeb(void*) {
@@ -709,6 +734,7 @@ void setup() {
         delay(10);
     }
     delay(200);
+    randomSeed(esp_random());
     logLine("");
     logLine("========================================");
     logLine("CoreS3 Air Station boot");
@@ -792,6 +818,7 @@ void loop() {
         serviceFilterBaselineCapture();
     }
     paintStatusAndSample();
+    serviceRandomAlarmTest();
     loopCounter++;
 
     if (uiReady && millis() - lastChartRefreshMs > kChartRefreshMs) {
