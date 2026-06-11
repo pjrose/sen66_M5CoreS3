@@ -35,7 +35,7 @@ bool UiManager::begin(const AppSettings& settings) {
     Serial.println("[ui] begin");
     lv_init();
     M5.Display.setBrightness(settings.brightness);
-    M5.Display.setSwapBytes(false);
+    M5.Display.setSwapBytes(true);
 
     const size_t pixels = kWidth * kDrawRows;
     buf1_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
