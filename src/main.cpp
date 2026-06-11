@@ -586,10 +586,10 @@ void serviceRawTouchDiagnostics() {
         const int x = pressed ? detail.x : directTouch.x;
         const int y = pressed ? detail.y : directTouch.y;
         if (uiReady && x >= 0 && y >= 0) {
-            // Raw fallback for the compact nav strip. This runs outside LVGL so it
+            // Raw fallback for the bottom nav strip. This runs outside LVGL so it
             // still helps when the touch rotation is not yet mapped correctly.
-            if (x >= 220 && y <= 28) {
-                const uint8_t target = static_cast<uint8_t>(std::min(4, std::max(0, (x - 220) / 20)));
+            if (y >= 198) {
+                const uint8_t target = static_cast<uint8_t>(std::min(4, std::max(0, x / 64)));
                 logf("Touch raw nav target=%u", target);
                 Ui.goToScreen(target, true);
             }

@@ -173,7 +173,7 @@ void UiManager::createStyles() {
     lv_style_set_border_opa(&styleGlass_, LV_OPA_40);
     lv_style_set_border_width(&styleGlass_, 1);
     lv_style_set_radius(&styleGlass_, 8);
-    lv_style_set_pad_all(&styleGlass_, 8);
+    lv_style_set_pad_all(&styleGlass_, 5);
     lv_style_set_shadow_color(&styleGlass_, lv_color_hex(0x00E676));
     lv_style_set_shadow_opa(&styleGlass_, LV_OPA_20);
     lv_style_set_shadow_width(&styleGlass_, 12);
@@ -199,12 +199,12 @@ lv_obj_t* UiManager::createCard(lv_obj_t* parent, int x, int y, int w, int h) {
 }
 
 void UiManager::createNav(lv_obj_t* screen) {
-    const char* labels[] = {"D", "C", "E", "S", "M"};
+    const char* labels[] = {"Dash", "Chart", "Log", "Set", "Info"};
     for (uint8_t i = 0; i < kScreenCount; ++i) {
         lv_obj_t* btn = lv_btn_create(screen);
-        lv_obj_set_pos(btn, 222 + i * 19, 3);
-        lv_obj_set_size(btn, 17, 17);
-        lv_obj_set_style_radius(btn, 4, 0);
+        lv_obj_set_pos(btn, 4 + i * 63, 201);
+        lv_obj_set_size(btn, 58, 34);
+        lv_obj_set_style_radius(btn, 7, 0);
         lv_obj_set_style_pad_all(btn, 0, 0);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x2A2A2A), 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_80, 0);
@@ -237,41 +237,42 @@ void UiManager::createScreens(const AppSettings& settings) {
     }
 
     statusLabel_ = lv_label_create(screens_[0]);
-    lv_obj_set_pos(statusLabel_, 8, 5);
-    lv_obj_set_width(statusLabel_, 208);
-    lv_label_set_text(statusLabel_, "WiFi --  MQTT --  SD --  00:00");
+    lv_obj_set_pos(statusLabel_, 8, 8);
+    lv_obj_set_width(statusLabel_, 120);
+    lv_obj_set_style_text_font(statusLabel_, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_line_space(statusLabel_, 1, 0);
+    lv_label_set_text(statusLabel_, "WiFi --\nMQTT --\nSD --\n00:00\nACTIVE");
 
-    primaryArc_ = lv_arc_create(screens_[0]);
-    lv_obj_set_size(primaryArc_, 132, 132);
-    lv_obj_set_pos(primaryArc_, 10, 36);
-    lv_arc_set_range(primaryArc_, 0, 500);
-    lv_arc_set_value(primaryArc_, 0);
-    lv_obj_remove_style(primaryArc_, nullptr, LV_PART_KNOB);
-    lv_obj_clear_flag(primaryArc_, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_t* particleCard = createCard(screens_[0], 8, 92, 120, 96);
+    primaryCaption_ = lv_label_create(particleCard);
+    lv_obj_set_width(primaryCaption_, 108);
+    lv_obj_set_style_text_font(primaryCaption_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_align(primaryCaption_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(primaryCaption_, "PM2.5\nug/m3");
+    lv_obj_align(primaryCaption_, LV_ALIGN_TOP_MID, 0, 6);
 
-    primaryValue_ = lv_label_create(screens_[0]);
+    primaryValue_ = lv_label_create(particleCard);
     lv_obj_set_style_text_font(primaryValue_, &lv_font_montserrat_32, 0);
-    lv_obj_align_to(primaryValue_, primaryArc_, LV_ALIGN_CENTER, 0, -8);
     lv_label_set_text(primaryValue_, "--");
+    lv_obj_align(primaryValue_, LV_ALIGN_BOTTOM_MID, 0, -8);
 
-    primaryCaption_ = lv_label_create(screens_[0]);
-    lv_obj_align_to(primaryCaption_, primaryArc_, LV_ALIGN_CENTER, 0, 28);
-    lv_label_set_text(primaryCaption_, "PM2.5 ug/m3");
-
-    const char* names[] = {"CO2", "Temp", "Hum", "VOC", "NOx", "PM10"};
-    for (int i = 0; i < 6; ++i) {
+    const char* names[] = {"CO2", "Temp", "Hum", "VOC", "NOx", "PM1", "PM4", "PM10"};
+    for (int i = 0; i < 8; ++i) {
         const int col = i % 2;
         const int row = i / 2;
-        lv_obj_t* card = createCard(screens_[0], 154 + col * 82, 34 + row * 58, 76, 50);
+        lv_obj_t* card = createCard(screens_[0], 136 + col * 88, 8 + row * 46, 84, 40);
         metricLabels_[i] = lv_label_create(card);
         lv_obj_add_style(metricLabels_[i], &styleMetric_, 0);
+        lv_obj_set_width(metricLabels_[i], 74);
+        lv_obj_set_style_text_font(metricLabels_[i], &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_line_space(metricLabels_[i], 0, 0);
         lv_label_set_text_fmt(metricLabels_[i], "%s\n--", names[i]);
     }
 
     alarmBanner_ = lv_btn_create(screens_[0]);
     lv_obj_add_style(alarmBanner_, &styleAlarm_, 0);
-    lv_obj_set_pos(alarmBanner_, 8, 204);
-    lv_obj_set_size(alarmBanner_, 304, 28);
+    lv_obj_set_pos(alarmBanner_, 8, 166);
+    lv_obj_set_size(alarmBanner_, 120, 28);
     lv_obj_add_event_cb(alarmBanner_, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(10));
     lv_obj_add_flag(alarmBanner_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_t* alarmText = lv_label_create(alarmBanner_);
@@ -279,43 +280,43 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_center(alarmText);
 
     chart_ = lv_chart_create(screens_[1]);
-    lv_obj_set_pos(chart_, 8, 24);
-    lv_obj_set_size(chart_, 304, 146);
+    lv_obj_set_pos(chart_, 8, 8);
+    lv_obj_set_size(chart_, 304, 132);
     lv_chart_set_type(chart_, LV_CHART_TYPE_LINE);
     lv_chart_set_point_count(chart_, 120);
     lv_chart_set_range(chart_, LV_CHART_AXIS_PRIMARY_Y, 0, 500);
     chartSeries_ = lv_chart_add_series(chart_, lv_color_hex(0x00E676), LV_CHART_AXIS_PRIMARY_Y);
     statsLabel_ = lv_label_create(screens_[1]);
-    lv_obj_set_pos(statsLabel_, 10, 178);
+    lv_obj_set_pos(statsLabel_, 10, 146);
     lv_label_set_text(statsLabel_, "Mean --   Min --   Max --");
 
     lv_obj_t* dayBtn = lv_btn_create(screens_[1]);
-    lv_obj_set_pos(dayBtn, 8, 204);
-    lv_obj_set_size(dayBtn, 88, 28);
+    lv_obj_set_pos(dayBtn, 8, 164);
+    lv_obj_set_size(dayBtn, 88, 30);
     lv_obj_add_event_cb(dayBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(20));
     lv_obj_t* dayLabel = lv_label_create(dayBtn);
     lv_label_set_text(dayLabel, "24 Hours");
     lv_obj_center(dayLabel);
 
     lv_obj_t* monthBtn = lv_btn_create(screens_[1]);
-    lv_obj_set_pos(monthBtn, 104, 204);
-    lv_obj_set_size(monthBtn, 88, 28);
+    lv_obj_set_pos(monthBtn, 104, 164);
+    lv_obj_set_size(monthBtn, 88, 30);
     lv_obj_add_event_cb(monthBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(21));
     lv_obj_t* monthLabel = lv_label_create(monthBtn);
     lv_label_set_text(monthLabel, "30 Days");
     lv_obj_center(monthLabel);
 
     lv_obj_t* filterBtn = lv_btn_create(screens_[1]);
-    lv_obj_set_pos(filterBtn, 200, 204);
-    lv_obj_set_size(filterBtn, 88, 28);
+    lv_obj_set_pos(filterBtn, 200, 164);
+    lv_obj_set_size(filterBtn, 88, 30);
     lv_obj_add_event_cb(filterBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(22));
     lv_obj_t* filterLabel = lv_label_create(filterBtn);
     lv_label_set_text(filterLabel, "Filter");
     lv_obj_center(filterLabel);
 
     eventList_ = lv_list_create(screens_[2]);
-    lv_obj_set_pos(eventList_, 6, 30);
-    lv_obj_set_size(eventList_, 308, 202);
+    lv_obj_set_pos(eventList_, 6, 8);
+    lv_obj_set_size(eventList_, 308, 186);
 
     lv_obj_t* brightLabel = lv_label_create(screens_[3]);
     lv_obj_set_pos(brightLabel, 8, 20);
@@ -374,7 +375,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(baselineStatusLabel_, "Filter baseline: not set");
 
     for (uint8_t i = 0; i < 5; ++i) {
-        lv_obj_t* slot = createCard(screens_[3], 8 + i * 62, 194, 56, 30);
+        lv_obj_t* slot = createCard(screens_[3], 8 + i * 62, 174, 56, 24);
         lv_obj_add_event_cb(slot, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<uintptr_t>(50 + i)));
         lv_obj_add_flag(slot, LV_OBJ_FLAG_CLICKABLE);
         cameraRollLabels_[i] = lv_label_create(slot);
@@ -391,7 +392,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_t* maintPanel = lv_obj_create(screens_[4]);
     lv_obj_add_style(maintPanel, &styleGlass_, 0);
     lv_obj_set_pos(maintPanel, 6, 30);
-    lv_obj_set_size(maintPanel, 308, 202);
+    lv_obj_set_size(maintPanel, 308, 164);
     lv_obj_set_scroll_dir(maintPanel, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(maintPanel, LV_SCROLLBAR_MODE_AUTO);
 
@@ -430,15 +431,20 @@ void UiManager::showScreen(uint8_t index, bool animate) {
 }
 
 void UiManager::updateSample(const SensorSample& sample) {
-    lv_arc_set_value(primaryArc_, isfinite(sample.pm2p5) ? std::min<int>(500, sample.pm2p5 * 10) : 0);
-    lv_obj_set_style_arc_color(primaryArc_, aqiColor(sample), LV_PART_INDICATOR);
+    if (primaryArc_) {
+        lv_arc_set_value(primaryArc_, isfinite(sample.pm2p5) ? std::min<int>(500, sample.pm2p5 * 10) : 0);
+        lv_obj_set_style_arc_color(primaryArc_, aqiColor(sample), LV_PART_INDICATOR);
+    }
+    lv_obj_set_style_text_color(primaryValue_, aqiColor(sample), 0);
     lv_label_set_text(primaryValue_, isfinite(sample.pm2p5) ? String(sample.pm2p5, 1).c_str() : "--");
     lv_label_set_text_fmt(metricLabels_[0], "CO2\n%u ppm", sample.co2);
     lv_label_set_text(metricLabels_[1], ("Temp\n" + fmtFloat(sample.temperature, 1, " C")).c_str());
     lv_label_set_text(metricLabels_[2], ("Hum\n" + fmtFloat(sample.humidity, 0, "%")).c_str());
     lv_label_set_text(metricLabels_[3], ("VOC\n" + fmtFloat(sample.vocIndex, 0, "")).c_str());
     lv_label_set_text(metricLabels_[4], ("NOx\n" + fmtFloat(sample.noxIndex, 0, "")).c_str());
-    lv_label_set_text(metricLabels_[5], ("PM10\n" + fmtFloat(sample.pm10p0, 1, "")).c_str());
+    lv_label_set_text(metricLabels_[5], ("PM1\n" + fmtFloat(sample.pm1p0, 1, "")).c_str());
+    lv_label_set_text(metricLabels_[6], ("PM4\n" + fmtFloat(sample.pm4p0, 1, "")).c_str());
+    lv_label_set_text(metricLabels_[7], ("PM10\n" + fmtFloat(sample.pm10p0, 1, "")).c_str());
 }
 
 void UiManager::updateStatus(bool wifi, bool mqtt, bool sd, DeviceState state) {
@@ -451,7 +457,7 @@ void UiManager::updateStatus(bool wifi, bool mqtt, bool sd, DeviceState state) {
     time_t now = time(nullptr);
     struct tm tmv {};
     localtime_r(&now, &tmv);
-    lv_label_set_text_fmt(statusLabel_, "WiFi %s  MQTT %s  SD %s  %02d:%02d  %s",
+    lv_label_set_text_fmt(statusLabel_, "WiFi %s\nMQTT %s\nSD %s\n%02d:%02d\n%s",
                           wifi ? "ok" : "--", mqtt ? "ok" : "--", sd ? "ok" : "--",
                           tmv.tm_hour, tmv.tm_min, stateText);
 }

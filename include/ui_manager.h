@@ -65,7 +65,7 @@ private:
     lv_obj_t* primaryArc_ = nullptr;
     lv_obj_t* primaryValue_ = nullptr;
     lv_obj_t* primaryCaption_ = nullptr;
-    lv_obj_t* metricLabels_[6] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+    lv_obj_t* metricLabels_[8] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
     lv_obj_t* alarmBanner_ = nullptr;
     lv_obj_t* chart_ = nullptr;
     lv_chart_series_t* chartSeries_ = nullptr;
