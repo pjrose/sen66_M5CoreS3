@@ -51,7 +51,10 @@ uint32_t lastChartRefreshMs = 0;
 uint32_t lastNtpSyncMs = 0;
 uint32_t lastBaselineCheckMs = 0;
 uint32_t lastHeartbeatMs = 0;
+uint32_t lastTouchLogMs = 0;
+uint32_t lastTouchNavMs = 0;
 volatile uint32_t loopCounter = 0;
+volatile bool sampleDirty = false;
 bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
@@ -285,6 +288,7 @@ bool updateLatestSample(const SensorSample& sample) {
     if (xSemaphoreTake(sampleMutex, pdMS_TO_TICKS(50)) == pdTRUE) {
         latestSample = sample;
         latestSampleReady = true;
+        sampleDirty = true;
         alertActive = sampleTriggersAlarm(sample, alertActive);
         alertNow = alertActive;
         xSemaphoreGive(sampleMutex);
@@ -596,6 +600,31 @@ void handleDisplayPower() {
     }
 }
 
+void serviceRawTouchDiagnostics() {
+    const auto detail = M5.Touch.getDetail();
+    const bool pressed = detail.isPressed();
+    const uint32_t nowMs = millis();
+    if (pressed && nowMs - lastTouchLogMs > 500UL) {
+        lastTouchLogMs = nowMs;
+        logf("Touch raw: x=%d y=%d state=0x%02x", detail.x, detail.y, static_cast<unsigned int>(detail.state));
+    }
+
+    if (pressed && nowMs - lastTouchNavMs > 900UL) {
+        lastTouchNavMs = nowMs;
+        const int x = detail.x;
+        const int y = detail.y;
+        if (uiReady && x >= 0 && y >= 0) {
+            // Raw fallback for the compact nav strip. This runs outside LVGL so it
+            // still helps when the touch rotation is not yet mapped correctly.
+            if (x >= 220 && y <= 28) {
+                const uint8_t target = static_cast<uint8_t>(std::min(4, std::max(0, (x - 220) / 20)));
+                logf("Touch raw nav target=%u", target);
+                Ui.goToScreen(target, true);
+            }
+        }
+    }
+}
+
 void paintStatusAndSample() {
     const uint32_t nowMs = millis();
     if (nowMs - lastStatusPaintMs < kStatusPaintMs) {
@@ -607,6 +636,10 @@ void paintStatusAndSample() {
         if (latestSampleReady) {
             if (uiReady) {
                 Ui.updateSample(latestSample);
+                if (sampleDirty) {
+                    logf("UI sample update: PM2.5=%.1f CO2=%u VOC=%.0f", latestSample.pm2p5, latestSample.co2, latestSample.vocIndex);
+                    sampleDirty = false;
+                }
             }
             Web.updateSample(latestSample, alertActive, state);
         }
@@ -756,6 +789,7 @@ void setup() {
 
 void loop() {
     M5.update();
+    serviceRawTouchDiagnostics();
     if (uiReady) {
         Ui.tick();
     }

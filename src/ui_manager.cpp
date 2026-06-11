@@ -608,6 +608,10 @@ bool UiManager::baselineResetRequested() {
     return value;
 }
 
+void UiManager::goToScreen(uint8_t index, bool animate) {
+    showScreen(index, animate);
+}
+
 lv_color_t UiManager::aqiColor(const SensorSample& sample) const {
     if (sample.co2 >= 1500 || sample.pm2p5 >= 55.0f || sample.vocIndex >= 300) {
         return lv_color_hex(0xFF1744);

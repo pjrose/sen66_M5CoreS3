@@ -27,6 +27,7 @@ public:
     bool ftpToggleChanged(bool& enabled);
     bool calibrationRequested();
     bool baselineResetRequested();
+    void goToScreen(uint8_t index, bool animate = true);
     Metric selectedMetric() const { return selectedMetric_; }
     bool monthMode() const { return monthMode_; }
     bool filterChartMode() const { return filterChartMode_; }
