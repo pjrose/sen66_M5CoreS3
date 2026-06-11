@@ -29,7 +29,7 @@ constexpr uint32_t kStatusPaintMs = 1000;
 constexpr uint32_t kChartRefreshMs = 30000;
 constexpr uint32_t kNetworkRetryMs = 10000;
 constexpr uint32_t kNtpRefreshMs = 24UL * 60UL * 60UL * 1000UL;
-constexpr bool kRandomAlarmTestMode = true;
+constexpr bool kRandomAlarmTestMode = false;
 
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);

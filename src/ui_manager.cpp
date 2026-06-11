@@ -396,24 +396,39 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(pageDownLabel, "PgDn");
     lv_obj_center(pageDownLabel);
 
+    lv_obj_t* settingsTitle = lv_label_create(screens_[3]);
+    lv_obj_set_pos(settingsTitle, 8, 6);
+    lv_obj_set_style_text_font(settingsTitle, &lv_font_montserrat_16, 0);
+    lv_label_set_text(settingsTitle, "Settings");
+
     lv_obj_t* brightLabel = lv_label_create(screens_[3]);
-    lv_obj_set_pos(brightLabel, 8, 20);
+    lv_obj_set_pos(brightLabel, 8, 30);
     lv_obj_set_style_text_font(brightLabel, &lv_font_montserrat_12, 0);
-    lv_label_set_text(brightLabel, "Brt");
+    lv_label_set_text(brightLabel, "Brightness");
     brightnessSlider_ = lv_slider_create(screens_[3]);
-    lv_obj_set_pos(brightnessSlider_, 38, 24);
-    lv_obj_set_width(brightnessSlider_, 244);
-    lv_slider_set_range(brightnessSlider_, 16, 255);
-    lv_slider_set_value(brightnessSlider_, settings.brightness, LV_ANIM_OFF);
+    lv_obj_set_pos(brightnessSlider_, 108, 33);
+    lv_obj_set_size(brightnessSlider_, 190, 12);
+    lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x2A2A2A), 0);
+    lv_obj_set_style_bg_opa(brightnessSlider_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(brightnessSlider_, 2, LV_PART_KNOB);
+    lv_slider_set_range(brightnessSlider_, 60, 255);
+    lv_slider_set_value(brightnessSlider_, std::max<uint8_t>(60, settings.brightness), LV_ANIM_OFF);
     lv_obj_add_event_cb(brightnessSlider_, [](lv_event_t*) { Ui.brightnessChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
 
     lv_obj_t* volumeLabel = lv_label_create(screens_[3]);
-    lv_obj_set_pos(volumeLabel, 8, 54);
+    lv_obj_set_pos(volumeLabel, 8, 62);
     lv_obj_set_style_text_font(volumeLabel, &lv_font_montserrat_12, 0);
-    lv_label_set_text(volumeLabel, "Vol");
+    lv_label_set_text(volumeLabel, "Volume");
     volumeSlider_ = lv_slider_create(screens_[3]);
-    lv_obj_set_pos(volumeSlider_, 38, 58);
-    lv_obj_set_width(volumeSlider_, 244);
+    lv_obj_set_pos(volumeSlider_, 108, 65);
+    lv_obj_set_size(volumeSlider_, 190, 12);
+    lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x2A2A2A), 0);
+    lv_obj_set_style_bg_opa(volumeSlider_, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_pad_all(volumeSlider_, 2, LV_PART_KNOB);
     lv_slider_set_range(volumeSlider_, 0, 255);
     lv_slider_set_value(volumeSlider_, settings.buzzerVolume, LV_ANIM_OFF);
     lv_obj_add_event_cb(volumeSlider_, [](lv_event_t*) { Ui.volumeChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
@@ -421,9 +436,9 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_t* ftpLabel = lv_label_create(screens_[3]);
     lv_obj_set_pos(ftpLabel, 8, 94);
     lv_obj_set_style_text_font(ftpLabel, &lv_font_montserrat_12, 0);
-    lv_label_set_text(ftpLabel, "FTP");
+    lv_label_set_text(ftpLabel, "FTP Server");
     ftpSwitch_ = lv_switch_create(screens_[3]);
-    lv_obj_set_pos(ftpSwitch_, 38, 92);
+    lv_obj_set_pos(ftpSwitch_, 108, 88);
     if (settings.ftpEnabled) {
         lv_obj_add_state(ftpSwitch_, LV_STATE_CHECKED);
     }
@@ -431,36 +446,26 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_add_event_cb(ftpSwitch_, [](lv_event_t*) { Ui.ftpChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
 
     lv_obj_t* baselineBtn = lv_btn_create(screens_[3]);
-    lv_obj_set_pos(baselineBtn, 38, 126);
-    lv_obj_set_size(baselineBtn, 116, 32);
+    lv_obj_set_pos(baselineBtn, 8, 122);
+    lv_obj_set_size(baselineBtn, 144, 34);
     lv_obj_add_event_cb(baselineBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(31));
     lv_obj_t* baselineBtnLabel = lv_label_create(baselineBtn);
     lv_label_set_text(baselineBtnLabel, "Baseline");
     lv_obj_center(baselineBtnLabel);
 
     lv_obj_t* calBtn = lv_btn_create(screens_[3]);
-    lv_obj_set_pos(calBtn, 164, 126);
-    lv_obj_set_size(calBtn, 118, 32);
+    lv_obj_set_pos(calBtn, 168, 122);
+    lv_obj_set_size(calBtn, 144, 34);
     lv_obj_add_event_cb(calBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(30));
     lv_obj_t* calLabel = lv_label_create(calBtn);
     lv_label_set_text(calLabel, "CO2 Cal");
     lv_obj_center(calLabel);
 
     baselineStatusLabel_ = lv_label_create(screens_[3]);
-    lv_obj_set_pos(baselineStatusLabel_, 8, 164);
+    lv_obj_set_pos(baselineStatusLabel_, 8, 162);
     lv_obj_set_width(baselineStatusLabel_, 304);
     lv_obj_set_style_text_font(baselineStatusLabel_, &lv_font_montserrat_12, 0);
     lv_label_set_text(baselineStatusLabel_, "Filter baseline: not set");
-
-    for (uint8_t i = 0; i < 5; ++i) {
-        lv_obj_t* slot = createCard(screens_[3], 8 + i * 62, 174, 56, 24);
-        lv_obj_add_event_cb(slot, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<uintptr_t>(50 + i)));
-        lv_obj_add_flag(slot, LV_OBJ_FLAG_CLICKABLE);
-        cameraRollLabels_[i] = lv_label_create(slot);
-        lv_obj_set_style_text_font(cameraRollLabels_[i], &lv_font_montserrat_12, 0);
-        lv_label_set_text(cameraRollLabels_[i], "--");
-        lv_obj_center(cameraRollLabels_[i]);
-    }
 
     lv_obj_t* maintTitle = lv_label_create(screens_[4]);
     lv_obj_set_pos(maintTitle, 8, 6);
@@ -626,6 +631,9 @@ void UiManager::plotFilterDeviation(const HistoryPoint* points, size_t count, co
 
 void UiManager::updateCameraRoll(const String* paths, size_t count) {
     for (size_t i = 0; i < 5; ++i) {
+        if (!cameraRollLabels_[i]) {
+            continue;
+        }
         if (i < count) {
             cameraRollPaths_[i] = paths[i];
             const int slash = paths[i].lastIndexOf('/');
@@ -673,7 +681,7 @@ bool UiManager::brightnessChanged(uint8_t& value) {
         return false;
     }
     brightnessChanged_ = false;
-    value = static_cast<uint8_t>(lv_slider_get_value(brightnessSlider_));
+    value = static_cast<uint8_t>(std::max<int>(60, lv_slider_get_value(brightnessSlider_)));
     return true;
 }
 
@@ -749,14 +757,14 @@ bool UiManager::handleRawTouch(int16_t x, int16_t y) {
     }
 
     if (currentScreen_ == 3) {
-        if (y >= 16 && y < 48) {
-            const int mapped = map(constrain(x, 38, 282), 38, 282, 16, 255);
+        if (y >= 24 && y < 52) {
+            const int mapped = map(constrain(x, 108, 298), 108, 298, 60, 255);
             lv_slider_set_value(brightnessSlider_, mapped, LV_ANIM_OFF);
             brightnessChanged_ = true;
             return true;
         }
-        if (y >= 50 && y < 84) {
-            const int mapped = map(constrain(x, 38, 282), 38, 282, 0, 255);
+        if (y >= 56 && y < 84) {
+            const int mapped = map(constrain(x, 108, 298), 108, 298, 0, 255);
             lv_slider_set_value(volumeSlider_, mapped, LV_ANIM_OFF);
             volumeChanged_ = true;
             return true;
@@ -771,8 +779,8 @@ bool UiManager::handleRawTouch(int16_t x, int16_t y) {
             ftpChanged_ = true;
             return true;
         }
-        if (y >= 120 && y < 164) {
-            if (x < 156) {
+        if (y >= 118 && y < 160) {
+            if (x < 160) {
                 baselineResetRequested_ = true;
             } else {
                 calibrationRequested_ = true;

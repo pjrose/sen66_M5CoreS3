@@ -86,7 +86,7 @@ bool ConfigManager::load() {
     settings_.alarmHysteresisPercent = doc["alarm_hysteresis_percent"] | settings_.alarmHysteresisPercent;
     settings_.timezone = doc["timezone"] | settings_.timezone;
     settings_.buzzerVolume = doc["buzzer_volume"] | settings_.buzzerVolume;
-    settings_.brightness = doc["brightness"] | settings_.brightness;
+    settings_.brightness = static_cast<uint8_t>(constrain(doc["brightness"] | settings_.brightness, 60, 255));
     settings_.proximityThreshold = doc["proximity_threshold"] | settings_.proximityThreshold;
     settings_.ftpEnabled = doc["ftp_enabled"] | settings_.ftpEnabled;
     settings_.ftpUser = doc["ftp_user"] | settings_.ftpUser;
