@@ -34,8 +34,8 @@ h1{font-size:18px;margin:0}.status{color:var(--muted);font-size:12px}.wrap{max-w
 .tabs,.files-tabs{display:flex;gap:8px;flex-wrap:wrap}.tabs button,.files-tabs button,.download{border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);border-radius:6px;padding:8px 10px;text-decoration:none}.tabs button.active,.files-tabs button.active{background:var(--good);color:#101010;font-weight:700}
 canvas{width:100%;height:260px;background:rgba(0,0,0,.16);border-radius:8px}.summary{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);margin-top:8px}
 .alert{display:none;background:var(--bad);color:#fff;border-radius:6px;padding:10px 12px;font-weight:800}.alert.on{display:block}.files{display:grid;gap:8px}.file{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px;border-radius:8px;background:rgba(255,255,255,.05);border:1px solid var(--line)}.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:10px}.thumb{aspect-ratio:4/3;object-fit:cover;width:100%;border-radius:8px;border:1px solid var(--line);background:#222}
-.config-actions,.config-actions form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.file-input{max-width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;background:rgba(255,255,255,.05);color:var(--text)}.primary{border:1px solid var(--line);background:var(--good);color:#101010;border-radius:6px;padding:8px 10px;font-weight:800}
-@media(max-width:760px){.grid,.hero{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}canvas{height:220px}}
+.config-actions,.config-actions form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.config-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0 14px}.file-input{max-width:100%;border:1px solid var(--line);border-radius:6px;padding:8px;background:rgba(255,255,255,.05);color:var(--text)}.primary{border:1px solid var(--line);background:var(--good);color:#101010;border-radius:6px;padding:8px 10px;font-weight:800}
+@media(max-width:760px){.grid,.hero,.config-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}canvas{height:220px}}
 </style>
 </head>
 <body>
@@ -61,6 +61,13 @@ canvas{width:100%;height:260px;background:rgba(0,0,0,.16);border-radius:8px}.sum
 </section>
 <section class="card">
 <h2>Configuration</h2>
+<h3>MQTT</h3>
+<div class="config-grid">
+  <div class="metric"><span class="label">Status</span><b id="mqttStatus">--</b></div>
+  <div class="metric"><span class="label">Host</span><b id="mqttHost">--</b></div>
+  <div class="metric"><span class="label">Topic</span><b id="mqttTopic">--</b></div>
+  <div class="metric"><span class="label">Client</span><b id="mqttClient">--</b></div>
+</div>
 <div class="config-actions">
   <a class="download" href="/config.json">Download config.json</a>
   <form method="post" action="/config.json" enctype="multipart/form-data">
@@ -74,8 +81,9 @@ canvas{width:100%;height:260px;background:rgba(0,0,0,.16);border-radius:8px}.sum
 let mode='day', fileDir='/log';
 const $=id=>document.getElementById(id);
 function fmt(n,d=1){return Number.isFinite(n)?n.toFixed(d):'--'}
+function short(v){return v&&String(v).length?String(v):'--'}
 function tint(pm,co2,voc){if(pm>=55||co2>=1500||voc>=300)return '#ff1744';if(pm>=25||co2>=1000||voc>=150)return '#ffd600';return '#00e676'}
-async function live(){const r=await fetch('/api/live');const j=await r.json();const s=j.sample||{};const c=tint(s.pm25_ugm3,s.co2_ppm,s.voc_index);$('pm25').textContent=fmt(s.pm25_ugm3);$('co2').textContent=(s.co2_ppm||'--')+' ppm';$('temp').textContent=fmt(s.temp_c)+' C';$('hum').textContent=fmt(s.humidity_pct,0)+'%';$('voc').textContent=fmt(s.voc_index,0);$('nox').textContent=fmt(s.nox_index,0);$('pm10').textContent=fmt(s.pm10_ugm3);$('gauge').style.background=`conic-gradient(${c} ${Math.min(360,(s.pm25_ugm3||0)*6)}deg,#303030 0)`;$('alert').className='alert '+(j.alert?'on':'');$('status').textContent=`WiFi ${j.wifi?'ok':'--'}  MQTT ${j.mqtt?'ok':'--'}  SD ${j.sd?'ok':'--'}  ${j.state}  ${j.ip||''}`;$('time').textContent=new Date((j.epoch||0)*1000).toLocaleTimeString();}
+async function live(){const r=await fetch('/api/live');const j=await r.json();const s=j.sample||{};const m=j.config?.mqtt||{};const c=tint(s.pm25_ugm3,s.co2_ppm,s.voc_index);$('pm25').textContent=fmt(s.pm25_ugm3);$('co2').textContent=(s.co2_ppm||'--')+' ppm';$('temp').textContent=fmt(s.temp_c)+' C';$('hum').textContent=fmt(s.humidity_pct,0)+'%';$('voc').textContent=fmt(s.voc_index,0);$('nox').textContent=fmt(s.nox_index,0);$('pm10').textContent=fmt(s.pm10_ugm3);$('gauge').style.background=`conic-gradient(${c} ${Math.min(360,(s.pm25_ugm3||0)*6)}deg,#303030 0)`;$('alert').className='alert '+(j.alert?'on':'');$('status').textContent=`WiFi ${j.wifi?'ok':'--'}  MQTT ${j.mqtt?'ok':'--'}  SD ${j.sd?'ok':'--'}  ${j.state}  ${j.ip||''}`;$('time').textContent=new Date((j.epoch||0)*1000).toLocaleTimeString();$('mqttStatus').textContent=m.host?(j.mqtt?'connected':'offline'):'off';$('mqttHost').textContent=m.host?`${m.host}:${m.port}`:'off';$('mqttTopic').textContent=short(m.topic);$('mqttClient').textContent=short(m.client_id);}
 async function history(){const r=await fetch('/api/history?mode='+mode);const j=await r.json();draw(j.points||[]);$('summary').textContent=mode==='filter'?`Now ${j.current_percent||0}%   Peak ${j.peak_percent||0}%   Avg ${j.mean_percent||0}%`:`Mean ${fmt(j.mean)}   Min ${fmt(j.min)}   Max ${fmt(j.max)}`;}
 function draw(p){const cv=$('chart'),ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;for(let i=1;i<5;i++){let y=i*cv.height/5;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cv.width,y);ctx.stroke()}if(!p.length)return;let vals=p.map(x=>x.v),min=Math.min(...vals,0),max=Math.max(...vals,10);ctx.strokeStyle=mode==='filter'?'#ffd600':'#00e676';ctx.lineWidth=4;ctx.beginPath();p.forEach((pt,i)=>{let x=i*Math.max(1,cv.width/(p.length-1));let y=cv.height-((pt.v-min)/(max-min||1))*cv.height;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.stroke();}
 async function files(){const r=await fetch('/api/files?dir='+encodeURIComponent(fileDir));const j=await r.json();$('files').innerHTML=(j.files||[]).map(f=>`<div class="file"><span>${f.name}<br><small>${f.size} bytes</small></span><a class="download" href="/download?path=${encodeURIComponent(f.path)}">Download</a></div>`).join('')||'<p class="label">No files yet.</p>';if(fileDir==='/cam')$('thumbs').innerHTML=(j.files||[]).slice(0,12).map(f=>`<a href="/image?path=${encodeURIComponent(f.path)}"><img class="thumb" src="/image?path=${encodeURIComponent(f.path)}" loading="lazy"></a>`).join('');}
@@ -197,6 +205,13 @@ void WebManager::sendLiveJson() {
     filter["ready"] = settings.filterBaselineReady;
     filter["pm25_ugm3"] = settings.filterBaselinePm25;
     filter["pm10_ugm3"] = settings.filterBaselinePm10;
+
+    JsonObject config = doc["config"].to<JsonObject>();
+    JsonObject mqtt = config["mqtt"].to<JsonObject>();
+    mqtt["host"] = settings.mqttHost;
+    mqtt["port"] = settings.mqttPort;
+    mqtt["client_id"] = settings.mqttClientId;
+    mqtt["topic"] = settings.mqttTopic;
 
     String json;
     serializeJson(doc, json);

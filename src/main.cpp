@@ -292,8 +292,13 @@ String maintenanceText() {
     text += "WiFi setup\n";
     text += "SSID: " + (settings.wifiSsid.length() ? settings.wifiSsid : String("(not set)")) + "\n";
     text += "Password: " + String(settings.wifiPassword.length() ? "set" : "not set") + "\n";
-    text += "MQTT: " + (settings.mqttHost.length() ? settings.mqttHost + ":" + String(settings.mqttPort) : String("(off)")) + "\n";
     text += "TZ: " + settings.timezone + "\n\n";
+
+    text += "MQTT setup\n";
+    text += "Status: " + String(settings.mqttHost.length() ? (mqtt.connected() ? "connected" : "offline") : "off") + "\n";
+    text += "Host: " + (settings.mqttHost.length() ? settings.mqttHost + ":" + String(settings.mqttPort) : String("(off)")) + "\n";
+    text += "Client: " + settings.mqttClientId + "\n";
+    text += "Topic: " + settings.mqttTopic + "\n\n";
 
     text += "Storage\n";
     text += "SD mounted: " + String(Config.sdReady() ? "yes" : "no") + "\n";

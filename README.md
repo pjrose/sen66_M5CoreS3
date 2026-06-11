@@ -8,7 +8,7 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 
 - Measures PM1.0, PM2.5, PM4.0, PM10, CO2, VOC Index, NOx Index, temperature, and relative humidity.
 - Uses SEN66 warmup-aware measurement scheduling so low-power cycles do not produce stale startup readings.
-- Stores fixed-width daily binary records and hourly monthly summaries for fast chart loading on a microcontroller.
+- Stores Excel-friendly daily CSV records and hourly monthly summaries for fast chart loading on a microcontroller.
 - Presents a dark LVGL interface with glass-style cards, horizontal swipe navigation, alarm banner, and touch controls.
 - Publishes MQTT payloads when Wi-Fi is available while continuing local SD logging when offline.
 - Plays short walk-up chirps through the CoreS3 I2S speaker using `M5.Speaker`, not PWM buzzer output.
@@ -114,6 +114,7 @@ Web dashboard features:
 
 - Live PM2.5, PM10, CO2, VOC, NOx, temperature, and humidity.
 - Device status: Wi-Fi, MQTT, SD, current firmware state, and IP address.
+- MQTT configuration/status card showing host, port, topic, client ID, and live connection state.
 - History chart modes: `24 Hours`, `30 Days`, and `Filter`.
 - Download browser for `/log` CSV records, `/alerts.log`, and `/cam` JPEG captures.
 - Camera-roll thumbnails with full-size JPEG links.
@@ -132,6 +133,21 @@ Local HTTP endpoints:
 - `POST /config.json` uploads a replacement configuration file and restarts the station after validation.
 
 The web dashboard is intended for trusted LAN use. It currently has no authentication layer, so do not port-forward it directly to the public internet.
+
+## MQTT Configuration
+
+MQTT settings live in a dedicated section of `/config.json`. Leave `host` empty to disable MQTT publishing.
+
+```json
+"mqtt": {
+  "host": "192.168.4.10",
+  "port": 1883,
+  "client_id": "m5stack-cores3-air",
+  "topic": "air/station"
+}
+```
+
+Older flat fields such as `mqtt_host`, `mqtt_port`, `mqtt_client_id`, and `mqtt_topic` are still accepted when loading an existing SD card config.
 
 ## Build
 

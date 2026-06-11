@@ -76,10 +76,18 @@ bool ConfigManager::load() {
 
     settings_.wifiSsid = doc["wifi_ssid"] | settings_.wifiSsid;
     settings_.wifiPassword = doc["wifi_password"] | settings_.wifiPassword;
-    settings_.mqttHost = doc["mqtt_host"] | settings_.mqttHost;
-    settings_.mqttPort = doc["mqtt_port"] | settings_.mqttPort;
-    settings_.mqttClientId = doc["mqtt_client_id"] | settings_.mqttClientId;
-    settings_.mqttTopic = doc["mqtt_topic"] | settings_.mqttTopic;
+    JsonObject mqtt = doc["mqtt"];
+    if (!mqtt.isNull()) {
+        settings_.mqttHost = mqtt["host"] | settings_.mqttHost;
+        settings_.mqttPort = mqtt["port"] | settings_.mqttPort;
+        settings_.mqttClientId = mqtt["client_id"] | settings_.mqttClientId;
+        settings_.mqttTopic = mqtt["topic"] | settings_.mqttTopic;
+    } else {
+        settings_.mqttHost = doc["mqtt_host"] | settings_.mqttHost;
+        settings_.mqttPort = doc["mqtt_port"] | settings_.mqttPort;
+        settings_.mqttClientId = doc["mqtt_client_id"] | settings_.mqttClientId;
+        settings_.mqttTopic = doc["mqtt_topic"] | settings_.mqttTopic;
+    }
     settings_.alarmCo2Ppm = doc["alarm_co2_ppm"] | settings_.alarmCo2Ppm;
     settings_.alarmPm25 = doc["alarm_pm25_ugm3"] | settings_.alarmPm25;
     settings_.alarmVoc = doc["alarm_voc_index"] | settings_.alarmVoc;
@@ -116,10 +124,11 @@ bool ConfigManager::save() const {
     JsonDocument doc;
     doc["wifi_ssid"] = settings_.wifiSsid;
     doc["wifi_password"] = settings_.wifiPassword;
-    doc["mqtt_host"] = settings_.mqttHost;
-    doc["mqtt_port"] = settings_.mqttPort;
-    doc["mqtt_client_id"] = settings_.mqttClientId;
-    doc["mqtt_topic"] = settings_.mqttTopic;
+    JsonObject mqtt = doc["mqtt"].to<JsonObject>();
+    mqtt["host"] = settings_.mqttHost;
+    mqtt["port"] = settings_.mqttPort;
+    mqtt["client_id"] = settings_.mqttClientId;
+    mqtt["topic"] = settings_.mqttTopic;
     doc["alarm_co2_ppm"] = settings_.alarmCo2Ppm;
     doc["alarm_pm25_ugm3"] = settings_.alarmPm25;
     doc["alarm_voc_index"] = settings_.alarmVoc;

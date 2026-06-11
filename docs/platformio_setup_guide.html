@@ -368,11 +368,17 @@ pio run</code></pre>
       <pre><code>{
   "wifi_ssid": "YourNetworkName",
   "wifi_password": "YourPassword",
+  "mqtt": {
+    "host": "",
+    "port": 1883,
+    "client_id": "m5stack-cores3-air",
+    "topic": "air/station"
+  },
   "timezone": "CST6CDT,M3.2.0,M11.1.0",
   "alarm_hysteresis_percent": 5.0
 }</code></pre>
 
-      <p>You do not need to remove the other config fields. This snippet only shows the fields most people edit first.</p>
+      <p>You do not need to remove the other config fields. Leave <code>mqtt.host</code> blank if you do not want MQTT publishing.</p>
 
       <div class="check">
         <strong>Expected:</strong> After reboot, the maintenance screen should show <code>Connected: yes</code>, an IP address, subnet, gateway, and RSSI.
