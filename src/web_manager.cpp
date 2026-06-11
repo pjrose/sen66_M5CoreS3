@@ -133,9 +133,11 @@ void WebManager::updateNetwork(bool wifiConnected, bool mqttConnected) {
     if (wifiConnected_ && !serverStarted_) {
         server_.begin();
         serverStarted_ = true;
+        Serial.println("[web] HTTP server started");
     } else if (!wifiConnected_ && serverStarted_) {
         server_.stop();
         serverStarted_ = false;
+        Serial.println("[web] HTTP server stopped");
     }
 }
 

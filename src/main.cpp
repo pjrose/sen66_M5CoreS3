@@ -5,8 +5,10 @@
 #include <SD.h>
 #include <WiFi.h>
 #include <driver/gpio.h>
+#include <esp_system.h>
 #include <esp_sleep.h>
 #include <ESPmDNS.h>
+#include <stdarg.h>
 #include <time.h>
 
 #include "audio_manager.h"
@@ -48,12 +50,58 @@ uint32_t lastStatusPaintMs = 0;
 uint32_t lastChartRefreshMs = 0;
 uint32_t lastNtpSyncMs = 0;
 uint32_t lastBaselineCheckMs = 0;
+uint32_t lastHeartbeatMs = 0;
 bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
 bool uiReady = false;
 
+const char* stateText(DeviceState value) {
+    switch (value) {
+        case DeviceState::Active: return "ACTIVE";
+        case DeviceState::IdleDimmed: return "DIM";
+        case DeviceState::LightSleep: return "SLEEP";
+        case DeviceState::Warmup: return "WARMUP";
+        case DeviceState::Measuring: return "MEASURING";
+        case DeviceState::Error: return "ERROR";
+    }
+    return "UNKNOWN";
+}
+
+const char* resetReasonText(esp_reset_reason_t reason) {
+    switch (reason) {
+        case ESP_RST_POWERON: return "POWERON";
+        case ESP_RST_EXT: return "EXTERNAL";
+        case ESP_RST_SW: return "SOFTWARE";
+        case ESP_RST_PANIC: return "PANIC";
+        case ESP_RST_INT_WDT: return "INT_WDT";
+        case ESP_RST_TASK_WDT: return "TASK_WDT";
+        case ESP_RST_WDT: return "OTHER_WDT";
+        case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT: return "BROWNOUT";
+        case ESP_RST_SDIO: return "SDIO";
+        default: return "UNKNOWN";
+    }
+}
+
+void logLine(const String& message) {
+    Serial.printf("[%8lu] %s\r\n", millis(), message.c_str());
+    Serial.flush();
+}
+
+void logf(const char* format, ...) {
+    char body[192] = {0};
+    va_list args;
+    va_start(args, format);
+    vsnprintf(body, sizeof(body), format, args);
+    va_end(args);
+    logLine(body);
+}
+
 void setState(DeviceState next) {
+    if (state != next) {
+        logf("State: %s -> %s", stateText(state), stateText(next));
+    }
     state = next;
 }
 
@@ -326,8 +374,12 @@ void serviceNetwork(void*) {
     uint32_t lastWifiAttempt = 0;
     uint32_t lastMqttAttempt = 0;
     bool mdnsStarted = false;
+    bool lastWifiConnected = false;
+    bool lastMqttConnected = false;
 
+    logLine("Network task starting");
     WiFi.mode(WIFI_STA);
+    logLine("WiFi mode set to STA");
     mqtt.setKeepAlive(15);
 
     for (;;) {
@@ -335,40 +387,64 @@ void serviceNetwork(void*) {
         const uint32_t nowMs = millis();
 
         if (settings.wifiSsid.length() > 0 && WiFi.status() != WL_CONNECTED && nowMs - lastWifiAttempt > kNetworkRetryMs) {
+            logf("WiFi connect attempt: ssid='%s'", settings.wifiSsid.c_str());
             WiFi.disconnect(false, false);
             WiFi.begin(settings.wifiSsid.c_str(), settings.wifiPassword.c_str());
+            lastWifiAttempt = nowMs;
+        } else if (settings.wifiSsid.length() == 0 && lastWifiAttempt == 0) {
+            logLine("WiFi SSID is empty; network features remain offline");
             lastWifiAttempt = nowMs;
         }
 
         if (WiFi.status() == WL_CONNECTED) {
+            if (!lastWifiConnected) {
+                logf("WiFi connected: ip=%s rssi=%d", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+                lastWifiConnected = true;
+            }
             if (!mdnsStarted && MDNS.begin("core-air")) {
                 MDNS.addService("http", "tcp", 80);
                 mdnsStarted = true;
+                logLine("mDNS started: http://core-air.local/");
             }
 
             if (lastNtpSyncMs == 0 || nowMs - lastNtpSyncMs > kNtpRefreshMs) {
                 applyTimezone();
                 configTzTime(Config.settings().timezone.c_str(), "pool.ntp.org", "time.nist.gov");
                 lastNtpSyncMs = nowMs;
+                logf("NTP sync requested: tz=%s", Config.settings().timezone.c_str());
             }
 
             if (settings.mqttHost.length() > 0 && !mqtt.connected() && nowMs - lastMqttAttempt > kNetworkRetryMs) {
                 mqtt.setServer(settings.mqttHost.c_str(), settings.mqttPort);
-                mqtt.connect(settings.mqttClientId.c_str());
+                logf("MQTT connect attempt: %s:%u", settings.mqttHost.c_str(), settings.mqttPort);
+                const bool ok = mqtt.connect(settings.mqttClientId.c_str());
+                logf("MQTT connect result: %s", ok ? "ok" : "failed");
                 lastMqttAttempt = nowMs;
             }
             mqtt.loop();
+            if (mqtt.connected() != lastMqttConnected) {
+                lastMqttConnected = mqtt.connected();
+                logf("MQTT state changed: %s", lastMqttConnected ? "connected" : "offline");
+            }
 
             if (mqtt.connected() && xSemaphoreTake(mqttMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
                 if (pendingMqttPayload.length() > 0) {
                     mqtt.publish(settings.mqttTopic.c_str(), pendingMqttPayload.c_str(), false);
+                    logLine("MQTT payload published");
                     pendingMqttPayload.clear();
                 }
                 xSemaphoreGive(mqttMutex);
             }
-        } else if (mdnsStarted) {
-            MDNS.end();
-            mdnsStarted = false;
+        } else {
+            if (lastWifiConnected) {
+                logLine("WiFi disconnected");
+                lastWifiConnected = false;
+            }
+            if (mdnsStarted) {
+                MDNS.end();
+                mdnsStarted = false;
+                logLine("mDNS stopped");
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(250));
@@ -379,9 +455,10 @@ void serviceAcquisition(void*) {
     uint32_t nextDueMs = millis() + kWarmupLeadMs;
     bool warmupStarted = false;
 
-    Sensors.startWarmup(millis());
-    warmupStarted = true;
-    setState(DeviceState::Warmup);
+    logLine("Acquisition task starting");
+    warmupStarted = Sensors.startWarmup(millis());
+    logf("Initial SEN66 warmup start: %s", warmupStarted ? "ok" : Sensors.lastError().c_str());
+    setState(warmupStarted ? DeviceState::Warmup : DeviceState::Error);
 
     for (;;) {
         const uint32_t nowMs = millis();
@@ -391,12 +468,14 @@ void serviceAcquisition(void*) {
         if (!warmupStarted && msUntilDue <= static_cast<int32_t>(kWarmupLeadMs)) {
             setState(DeviceState::Warmup);
             warmupStarted = Sensors.startWarmup(nowMs);
+            logf("SEN66 warmup start: %s", warmupStarted ? "ok" : Sensors.lastError().c_str());
         }
 
         if (warmupStarted && Sensors.readyForMeasurement(nowMs) && static_cast<int32_t>(nowMs - nextDueMs) >= 0) {
             setState(DeviceState::Measuring);
             SensorSample sample;
             if (Sensors.readAveraged(5, 1000, sample)) {
+                logf("Sample ok: PM2.5=%.1f CO2=%u VOC=%.0f", sample.pm2p5, sample.co2, sample.vocIndex);
                 Logger.append(sample);
                 const bool nowAlert = updateLatestSample(sample);
                 queueMqttPayload(buildMqttPayload(sample));
@@ -411,6 +490,7 @@ void serviceAcquisition(void*) {
                 previousAlertActive = nowAlert;
             } else {
                 const String msg = "Sensor Comm Error";
+                logf("Sample failed: %s", Sensors.lastError().c_str());
                 Logger.appendAlert(msg, static_cast<uint32_t>(time(nullptr)));
                 if (uiReady) {
                     Ui.addEvent(msg);
@@ -545,38 +625,85 @@ void paintStatusAndSample() {
     Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
 }
 
+void serviceSerialHeartbeat() {
+    const uint32_t nowMs = millis();
+    if (nowMs - lastHeartbeatMs < 5000UL) {
+        return;
+    }
+    lastHeartbeatMs = nowMs;
+    const String wifiText = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("offline");
+    logf("Heartbeat: state=%s ui=%s sd=%s wifi=%s mqtt=%s heap=%u",
+         stateText(state),
+         uiReady ? "ok" : "off",
+         Config.sdReady() ? "ok" : "missing",
+         wifiText.c_str(),
+         mqtt.connected() ? "connected" : "offline",
+         ESP.getFreeHeap());
+}
+
 }  // namespace
 
 void setup() {
     Serial.begin(115200);
+    Serial.setDebugOutput(true);
+    const uint32_t serialWaitStarted = millis();
+    while (!Serial && millis() - serialWaitStarted < 3000UL) {
+        delay(10);
+    }
     delay(200);
+    logLine("");
+    logLine("========================================");
+    logLine("CoreS3 Air Station boot");
+    logf("Reset reason: %s (%d)", resetReasonText(esp_reset_reason()), static_cast<int>(esp_reset_reason()));
+    logf("Build: %s %s", __DATE__, __TIME__);
+    logf("Free heap before M5.begin: %u", ESP.getFreeHeap());
 
     auto cfg = M5.config();
+    logLine("M5.begin starting");
     M5.begin(cfg);
+    logLine("M5.begin ok");
     M5.Display.setRotation(1);
     M5.Display.setBrightness(160);
     M5.Display.fillScreen(TFT_BLACK);
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
     M5.Display.drawString("CoreS3 Air Station", 12, 12);
     M5.Display.drawString("Booting...", 12, 34);
+    logf("Display ready: %dx%d rotation=%d", M5.Display.width(), M5.Display.height(), M5.Display.getRotation());
 
+    logLine("Creating mutexes");
     sampleMutex = xSemaphoreCreateMutex();
     mqttMutex = xSemaphoreCreateMutex();
+    logf("Mutexes: sample=%s mqtt=%s", sampleMutex ? "ok" : "failed", mqttMutex ? "ok" : "failed");
 
-    Config.begin();
+    logLine("Config.begin starting");
+    const bool configOk = Config.begin();
+    logf("Config.begin result: ok=%s sd=%s err='%s'", configOk ? "true" : "false", Config.sdReady() ? "true" : "false", Config.lastError().c_str());
     applyTimezone();
-    Logger.begin();
+    logf("Timezone applied: %s", Config.settings().timezone.c_str());
+    logLine("Logger.begin starting");
+    const bool loggerOk = Logger.begin();
+    logf("Logger.begin result: %s err='%s'", loggerOk ? "ok" : "failed", Logger.lastError().c_str());
+    logLine("Audio.begin starting");
     Audio.begin(Config.settings().buzzerVolume);
+    logLine("Audio.begin ok");
+    logLine("Ui.begin starting");
     uiReady = Ui.begin(Config.settings());
-    if (!uiReady) {
-        Serial.println("UI init failed");
-    }
+    logf("Ui.begin result: %s", uiReady ? "ok" : "failed");
+    logLine("Ftp.begin starting");
     Ftp.begin(Config.settings());
+    logLine("Ftp.begin ok");
+    logLine("Web.begin starting");
     Web.begin();
-    configureProximitySensor(Config.settings());
-    Sensors.begin(Wire);
+    logLine("Web.begin ok; HTTP listener starts after WiFi connects");
+    logLine("Proximity/ALS init starting");
+    const bool proxOk = configureProximitySensor(Config.settings());
+    logf("Proximity/ALS init result: %s", proxOk ? "ok" : "not found");
+    logLine("SEN66 begin starting");
+    const bool sensorOk = Sensors.begin(Wire);
+    logf("SEN66 begin result: %s err='%s'", sensorOk ? "ok" : "failed", Sensors.lastError().c_str());
     String recent[5];
     const size_t recentCount = Config.sdReady() ? Camera.recentImages(recent, 5) : 0;
+    logf("Recent camera images listed: %u", static_cast<unsigned int>(recentCount));
     if (uiReady) {
         Ui.updateCameraRoll(recent, recentCount);
     }
@@ -585,8 +712,10 @@ void setup() {
     }
 
     lastInteractionMs = millis();
+    logLine("Starting FreeRTOS tasks");
     xTaskCreatePinnedToCore(serviceNetwork, "network", 8192, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(serviceAcquisition, "acquisition", 8192, nullptr, 1, nullptr, 0);
+    logLine("Setup complete");
 }
 
 void loop() {
@@ -602,6 +731,7 @@ void loop() {
         serviceFilterBaselineCapture();
     }
     paintStatusAndSample();
+    serviceSerialHeartbeat();
 
     if (uiReady && millis() - lastChartRefreshMs > kChartRefreshMs) {
         lastChartRefreshMs = millis();
