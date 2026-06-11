@@ -52,10 +52,13 @@ uint32_t lastTouchLogMs = 0;
 uint32_t lastTouchNavMs = 0;
 volatile uint32_t loopCounter = 0;
 volatile bool sampleDirty = false;
+volatile bool debugLineDirty = false;
 bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
 bool uiReady = false;
+portMUX_TYPE debugLineMux = portMUX_INITIALIZER_UNLOCKED;
+char latestDebugLine[160] = {0};
 
 const char* stateText(DeviceState value) {
     switch (value) {
@@ -88,6 +91,10 @@ const char* resetReasonText(esp_reset_reason_t reason) {
 void logLine(const String& message) {
     Serial.printf("[%8lu] %s\r\n", millis(), message.c_str());
     Serial.flush();
+    portENTER_CRITICAL(&debugLineMux);
+    snprintf(latestDebugLine, sizeof(latestDebugLine), "%s", message.c_str());
+    debugLineDirty = true;
+    portEXIT_CRITICAL(&debugLineMux);
 }
 
 void logf(const char* format, ...) {
@@ -597,6 +604,18 @@ void serviceRawTouchDiagnostics() {
     }
 }
 
+void serviceDebugLine() {
+    if (!uiReady || !debugLineDirty) {
+        return;
+    }
+    char line[sizeof(latestDebugLine)] = {0};
+    portENTER_CRITICAL(&debugLineMux);
+    snprintf(line, sizeof(line), "%s", latestDebugLine);
+    debugLineDirty = false;
+    portEXIT_CRITICAL(&debugLineMux);
+    Ui.updateDebugMessage(String(line));
+}
+
 void paintStatusAndSample() {
     const uint32_t nowMs = millis();
     if (nowMs - lastStatusPaintMs < kStatusPaintMs) {
@@ -762,6 +781,7 @@ void setup() {
 void loop() {
     M5.update();
     serviceRawTouchDiagnostics();
+    serviceDebugLine();
     if (uiReady) {
         Ui.tick();
     }

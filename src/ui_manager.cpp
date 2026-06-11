@@ -129,6 +129,16 @@ void UiManager::eventCb(lv_event_t* e) {
         case 20: Ui.monthMode_ = false; Ui.filterChartMode_ = false; break;
         case 21: Ui.monthMode_ = true; Ui.filterChartMode_ = false; break;
         case 22: Ui.filterChartMode_ = true; break;
+        case 23:
+            if (Ui.eventList_) {
+                lv_obj_scroll_to_y(Ui.eventList_, std::max<int32_t>(0, lv_obj_get_scroll_y(Ui.eventList_) - 54), LV_ANIM_ON);
+            }
+            break;
+        case 24:
+            if (Ui.eventList_) {
+                lv_obj_scroll_to_y(Ui.eventList_, lv_obj_get_scroll_y(Ui.eventList_) + 54, LV_ANIM_ON);
+            }
+            break;
         case 30: Ui.calibrationRequested_ = true; break;
         case 31: Ui.baselineResetRequested_ = true; break;
         default: break;
@@ -282,7 +292,17 @@ void UiManager::createScreens(const AppSettings& settings) {
     chart_ = lv_chart_create(screens_[1]);
     lv_obj_set_pos(chart_, 8, 8);
     lv_obj_set_size(chart_, 304, 132);
+    lv_obj_add_style(chart_, &styleGlass_, 0);
+    lv_obj_set_style_bg_color(chart_, lv_color_hex(0x181818), 0);
+    lv_obj_set_style_bg_opa(chart_, LV_OPA_90, 0);
+    lv_obj_set_style_border_color(chart_, lv_color_hex(0x00E676), 0);
+    lv_obj_set_style_border_opa(chart_, LV_OPA_60, 0);
+    lv_obj_set_style_line_color(chart_, lv_color_hex(0x3A3A3A), LV_PART_MAIN);
+    lv_obj_set_style_line_opa(chart_, LV_OPA_70, LV_PART_MAIN);
+    lv_obj_set_style_line_width(chart_, 3, LV_PART_ITEMS);
+    lv_obj_set_style_size(chart_, 0, LV_PART_INDICATOR);
     lv_chart_set_type(chart_, LV_CHART_TYPE_LINE);
+    lv_chart_set_div_line_count(chart_, 5, 6);
     lv_chart_set_point_count(chart_, 120);
     lv_chart_set_range(chart_, LV_CHART_AXIS_PRIMARY_Y, 0, 500);
     chartSeries_ = lv_chart_add_series(chart_, lv_color_hex(0x00E676), LV_CHART_AXIS_PRIMARY_Y);
@@ -314,9 +334,65 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(filterLabel, "Filter");
     lv_obj_center(filterLabel);
 
+    lv_obj_t* debugTitle = lv_label_create(screens_[2]);
+    lv_obj_set_pos(debugTitle, 8, 6);
+    lv_obj_set_style_text_font(debugTitle, &lv_font_montserrat_12, 0);
+    lv_label_set_text(debugTitle, "Debug");
+
+    lv_obj_t* debugDivider = lv_obj_create(screens_[2]);
+    lv_obj_set_pos(debugDivider, 8, 22);
+    lv_obj_set_size(debugDivider, 304, 1);
+    lv_obj_set_style_bg_color(debugDivider, lv_color_hex(0x5A5A5A), 0);
+    lv_obj_set_style_border_width(debugDivider, 0, 0);
+    lv_obj_set_style_pad_all(debugDivider, 0, 0);
+    lv_obj_clear_flag(debugDivider, LV_OBJ_FLAG_SCROLLABLE);
+
+    debugLabel_ = lv_label_create(screens_[2]);
+    lv_obj_set_pos(debugLabel_, 8, 28);
+    lv_obj_set_width(debugLabel_, 304);
+    lv_obj_set_style_text_font(debugLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_long_mode(debugLabel_, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(debugLabel_, "Waiting for USB log...");
+
+    lv_obj_t* alarmTitle = lv_label_create(screens_[2]);
+    lv_obj_set_pos(alarmTitle, 8, 74);
+    lv_obj_set_style_text_font(alarmTitle, &lv_font_montserrat_12, 0);
+    lv_label_set_text(alarmTitle, "Alarms");
+
+    lv_obj_t* alarmDivider = lv_obj_create(screens_[2]);
+    lv_obj_set_pos(alarmDivider, 8, 90);
+    lv_obj_set_size(alarmDivider, 304, 1);
+    lv_obj_set_style_bg_color(alarmDivider, lv_color_hex(0x5A5A5A), 0);
+    lv_obj_set_style_border_width(alarmDivider, 0, 0);
+    lv_obj_set_style_pad_all(alarmDivider, 0, 0);
+    lv_obj_clear_flag(alarmDivider, LV_OBJ_FLAG_SCROLLABLE);
+
     eventList_ = lv_list_create(screens_[2]);
-    lv_obj_set_pos(eventList_, 6, 8);
-    lv_obj_set_size(eventList_, 308, 186);
+    lv_obj_set_pos(eventList_, 8, 98);
+    lv_obj_set_size(eventList_, 226, 96);
+    lv_obj_add_style(eventList_, &styleGlass_, 0);
+    lv_obj_set_style_bg_opa(eventList_, LV_OPA_40, 0);
+    lv_obj_set_style_pad_all(eventList_, 2, 0);
+    lv_list_add_text(eventList_, "No alarms yet");
+    eventPlaceholderShown_ = true;
+
+    lv_obj_t* pageUpBtn = lv_btn_create(screens_[2]);
+    lv_obj_set_pos(pageUpBtn, 242, 98);
+    lv_obj_set_size(pageUpBtn, 70, 42);
+    lv_obj_add_event_cb(pageUpBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(23));
+    lv_obj_t* pageUpLabel = lv_label_create(pageUpBtn);
+    lv_obj_set_style_text_font(pageUpLabel, &lv_font_montserrat_12, 0);
+    lv_label_set_text(pageUpLabel, "PgUp");
+    lv_obj_center(pageUpLabel);
+
+    lv_obj_t* pageDownBtn = lv_btn_create(screens_[2]);
+    lv_obj_set_pos(pageDownBtn, 242, 152);
+    lv_obj_set_size(pageDownBtn, 70, 42);
+    lv_obj_add_event_cb(pageDownBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(24));
+    lv_obj_t* pageDownLabel = lv_label_create(pageDownBtn);
+    lv_obj_set_style_text_font(pageDownLabel, &lv_font_montserrat_12, 0);
+    lv_label_set_text(pageDownLabel, "PgDn");
+    lv_obj_center(pageDownLabel);
 
     lv_obj_t* brightLabel = lv_label_create(screens_[3]);
     lv_obj_set_pos(brightLabel, 8, 20);
@@ -480,7 +556,19 @@ void UiManager::setStats(const char* meanText, const char* minText, const char* 
 }
 
 void UiManager::addEvent(const String& eventText) {
+    if (eventPlaceholderShown_) {
+        lv_obj_clean(eventList_);
+        eventPlaceholderShown_ = false;
+    }
     lv_list_add_text(eventList_, eventText.c_str());
+    lv_obj_scroll_to_y(eventList_, LV_COORD_MAX, LV_ANIM_ON);
+}
+
+void UiManager::updateDebugMessage(const String& text) {
+    if (!debugLabel_) {
+        return;
+    }
+    lv_label_set_text(debugLabel_, text.c_str());
 }
 
 void UiManager::plotHistory(const HistoryPoint* points, size_t count, Metric metric) {

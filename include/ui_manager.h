@@ -16,6 +16,7 @@ public:
     void updateAlarm(bool active, bool muted);
     void setStats(const char* meanText, const char* minText, const char* maxText);
     void addEvent(const String& eventText);
+    void updateDebugMessage(const String& text);
     void plotHistory(const HistoryPoint* points, size_t count, Metric metric);
     void plotFilterDeviation(const HistoryPoint* points, size_t count, const FilterDeviationSummary& summary);
     void updateCameraRoll(const String* paths, size_t count);
@@ -71,6 +72,8 @@ private:
     lv_chart_series_t* chartSeries_ = nullptr;
     lv_obj_t* statsLabel_ = nullptr;
     lv_obj_t* eventList_ = nullptr;
+    lv_obj_t* debugLabel_ = nullptr;
+    bool eventPlaceholderShown_ = false;
     lv_obj_t* brightnessSlider_ = nullptr;
     lv_obj_t* volumeSlider_ = nullptr;
     lv_obj_t* ftpSwitch_ = nullptr;
