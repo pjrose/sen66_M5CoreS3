@@ -141,6 +141,7 @@ void UiManager::eventCb(lv_event_t* e) {
             break;
         case 30: Ui.calibrationRequested_ = true; break;
         case 31: Ui.baselineResetRequested_ = true; break;
+        case 32: Ui.cameraSnapshotRequested_ = true; break;
         default: break;
     }
     if (code >= 50 && code < 55) {
@@ -407,7 +408,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(brightLabel, "Brightness");
     brightnessSlider_ = lv_slider_create(screens_[3]);
     lv_obj_set_pos(brightnessSlider_, 108, 33);
-    lv_obj_set_size(brightnessSlider_, 190, 12);
+    lv_obj_set_size(brightnessSlider_, 156, 14);
     lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(brightnessSlider_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
@@ -416,6 +417,10 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_slider_set_range(brightnessSlider_, 60, 255);
     lv_slider_set_value(brightnessSlider_, std::max<uint8_t>(60, settings.brightness), LV_ANIM_OFF);
     lv_obj_add_event_cb(brightnessSlider_, [](lv_event_t*) { Ui.brightnessChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
+    brightnessValueLabel_ = lv_label_create(screens_[3]);
+    lv_obj_set_pos(brightnessValueLabel_, 270, 30);
+    lv_obj_set_style_text_font(brightnessValueLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_text_fmt(brightnessValueLabel_, "%u", static_cast<unsigned int>(std::max<uint8_t>(60, settings.brightness)));
 
     lv_obj_t* volumeLabel = lv_label_create(screens_[3]);
     lv_obj_set_pos(volumeLabel, 8, 62);
@@ -423,7 +428,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(volumeLabel, "Volume");
     volumeSlider_ = lv_slider_create(screens_[3]);
     lv_obj_set_pos(volumeSlider_, 108, 65);
-    lv_obj_set_size(volumeSlider_, 190, 12);
+    lv_obj_set_size(volumeSlider_, 156, 14);
     lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(volumeSlider_, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
@@ -432,6 +437,10 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_slider_set_range(volumeSlider_, 0, 255);
     lv_slider_set_value(volumeSlider_, settings.buzzerVolume, LV_ANIM_OFF);
     lv_obj_add_event_cb(volumeSlider_, [](lv_event_t*) { Ui.volumeChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
+    volumeValueLabel_ = lv_label_create(screens_[3]);
+    lv_obj_set_pos(volumeValueLabel_, 270, 62);
+    lv_obj_set_style_text_font(volumeValueLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_text_fmt(volumeValueLabel_, "%u", static_cast<unsigned int>(settings.buzzerVolume));
 
     lv_obj_t* ftpLabel = lv_label_create(screens_[3]);
     lv_obj_set_pos(ftpLabel, 8, 94);
@@ -447,19 +456,27 @@ void UiManager::createScreens(const AppSettings& settings) {
 
     lv_obj_t* baselineBtn = lv_btn_create(screens_[3]);
     lv_obj_set_pos(baselineBtn, 8, 122);
-    lv_obj_set_size(baselineBtn, 144, 34);
+    lv_obj_set_size(baselineBtn, 92, 34);
     lv_obj_add_event_cb(baselineBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(31));
     lv_obj_t* baselineBtnLabel = lv_label_create(baselineBtn);
     lv_label_set_text(baselineBtnLabel, "Baseline");
     lv_obj_center(baselineBtnLabel);
 
     lv_obj_t* calBtn = lv_btn_create(screens_[3]);
-    lv_obj_set_pos(calBtn, 168, 122);
-    lv_obj_set_size(calBtn, 144, 34);
+    lv_obj_set_pos(calBtn, 110, 122);
+    lv_obj_set_size(calBtn, 92, 34);
     lv_obj_add_event_cb(calBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(30));
     lv_obj_t* calLabel = lv_label_create(calBtn);
     lv_label_set_text(calLabel, "CO2 Cal");
     lv_obj_center(calLabel);
+
+    lv_obj_t* snapBtn = lv_btn_create(screens_[3]);
+    lv_obj_set_pos(snapBtn, 212, 122);
+    lv_obj_set_size(snapBtn, 100, 34);
+    lv_obj_add_event_cb(snapBtn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(32));
+    lv_obj_t* snapLabel = lv_label_create(snapBtn);
+    lv_label_set_text(snapLabel, "Snap");
+    lv_obj_center(snapLabel);
 
     baselineStatusLabel_ = lv_label_create(screens_[3]);
     lv_obj_set_pos(baselineStatusLabel_, 8, 162);
@@ -682,6 +699,9 @@ bool UiManager::brightnessChanged(uint8_t& value) {
     }
     brightnessChanged_ = false;
     value = static_cast<uint8_t>(std::max<int>(60, lv_slider_get_value(brightnessSlider_)));
+    if (brightnessValueLabel_) {
+        lv_label_set_text_fmt(brightnessValueLabel_, "%u", static_cast<unsigned int>(value));
+    }
     return true;
 }
 
@@ -691,6 +711,9 @@ bool UiManager::volumeChanged(uint8_t& value) {
     }
     volumeChanged_ = false;
     value = static_cast<uint8_t>(lv_slider_get_value(volumeSlider_));
+    if (volumeValueLabel_) {
+        lv_label_set_text_fmt(volumeValueLabel_, "%u", static_cast<unsigned int>(value));
+    }
     return true;
 }
 
@@ -713,6 +736,12 @@ bool UiManager::calibrationRequested() {
 bool UiManager::baselineResetRequested() {
     const bool value = baselineResetRequested_;
     baselineResetRequested_ = false;
+    return value;
+}
+
+bool UiManager::cameraSnapshotRequested() {
+    const bool value = cameraSnapshotRequested_;
+    cameraSnapshotRequested_ = false;
     return value;
 }
 
@@ -758,14 +787,20 @@ bool UiManager::handleRawTouch(int16_t x, int16_t y) {
 
     if (currentScreen_ == 3) {
         if (y >= 24 && y < 52) {
-            const int mapped = map(constrain(x, 108, 298), 108, 298, 60, 255);
+            const int mapped = map(constrain(x, 108, 264), 108, 264, 60, 255);
             lv_slider_set_value(brightnessSlider_, mapped, LV_ANIM_OFF);
+            if (brightnessValueLabel_) {
+                lv_label_set_text_fmt(brightnessValueLabel_, "%u", static_cast<unsigned int>(mapped));
+            }
             brightnessChanged_ = true;
             return true;
         }
         if (y >= 56 && y < 84) {
-            const int mapped = map(constrain(x, 108, 298), 108, 298, 0, 255);
+            const int mapped = map(constrain(x, 108, 264), 108, 264, 0, 255);
             lv_slider_set_value(volumeSlider_, mapped, LV_ANIM_OFF);
+            if (volumeValueLabel_) {
+                lv_label_set_text_fmt(volumeValueLabel_, "%u", static_cast<unsigned int>(mapped));
+            }
             volumeChanged_ = true;
             return true;
         }
@@ -780,10 +815,12 @@ bool UiManager::handleRawTouch(int16_t x, int16_t y) {
             return true;
         }
         if (y >= 118 && y < 160) {
-            if (x < 160) {
+            if (x < 106) {
                 baselineResetRequested_ = true;
-            } else {
+            } else if (x < 208) {
                 calibrationRequested_ = true;
+            } else {
+                cameraSnapshotRequested_ = true;
             }
             return true;
         }

@@ -45,6 +45,9 @@ private:
     bool flushHourIfNeeded(uint32_t timestamp);
     bool writeSummary(const HourSummaryRecord& record);
     String dailyPath(uint32_t epoch) const;
+    String binaryDailyPath(uint32_t epoch) const;
+    bool writeCsvHeaderIfNeeded(File& file);
+    bool parseCsvRecord(const String& line, LogRecord& record) const;
     int16_t metricValue(const LogRecord& record, Metric metric) const;
     int16_t metricValue(const HourSummaryRecord& record, Metric metric) const;
     bool readRecordAt(File& file, size_t index, LogRecord& record);

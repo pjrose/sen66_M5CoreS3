@@ -28,6 +28,7 @@ public:
     bool ftpToggleChanged(bool& enabled);
     bool calibrationRequested();
     bool baselineResetRequested();
+    bool cameraSnapshotRequested();
     void goToScreen(uint8_t index, bool animate = true);
     bool handleRawTouch(int16_t x, int16_t y);
     bool chartModeChanged();
@@ -79,6 +80,8 @@ private:
     bool eventPlaceholderShown_ = false;
     lv_obj_t* brightnessSlider_ = nullptr;
     lv_obj_t* volumeSlider_ = nullptr;
+    lv_obj_t* brightnessValueLabel_ = nullptr;
+    lv_obj_t* volumeValueLabel_ = nullptr;
     lv_obj_t* ftpSwitch_ = nullptr;
     lv_obj_t* baselineStatusLabel_ = nullptr;
     lv_obj_t* maintenanceLabel_ = nullptr;
@@ -91,6 +94,7 @@ private:
     bool ftpChanged_ = false;
     bool calibrationRequested_ = false;
     bool baselineResetRequested_ = false;
+    bool cameraSnapshotRequested_ = false;
     bool chartModeChanged_ = false;
     bool ftpEnabled_ = false;
     uint8_t currentScreen_ = 0;

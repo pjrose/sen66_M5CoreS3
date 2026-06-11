@@ -4,7 +4,7 @@ PlatformIO firmware for an M5Stack CoreS3-Lite with a Sensirion SEN66 on Grove P
 
 ## Feature Overview
 
-This firmware turns the CoreS3-Lite into a compact premium air-quality station with live SEN66 readings, long-term binary logging, alarm handling, camera snapshots, and optional network publishing.
+This firmware turns the CoreS3-Lite into a compact premium air-quality station with live SEN66 readings, long-term CSV logging, alarm handling, camera snapshots, and optional network publishing.
 
 - Measures PM1.0, PM2.5, PM4.0, PM10, CO2, VOC Index, NOx Index, temperature, and relative humidity.
 - Uses SEN66 warmup-aware measurement scheduling so low-power cycles do not produce stale startup readings.
@@ -115,7 +115,7 @@ Web dashboard features:
 - Live PM2.5, PM10, CO2, VOC, NOx, temperature, and humidity.
 - Device status: Wi-Fi, MQTT, SD, current firmware state, and IP address.
 - History chart modes: `24 Hours`, `30 Days`, and `Filter`.
-- Download browser for `/log` binary records, `/alerts.log`, and `/cam` JPEG captures.
+- Download browser for `/log` CSV records, `/alerts.log`, and `/cam` JPEG captures.
 - Camera-roll thumbnails with full-size JPEG links.
 - `config.json` download/upload. Uploaded JSON is validated, written to SD, and the station restarts so new settings take effect.
 
@@ -126,7 +126,7 @@ Local HTTP endpoints:
 - `GET /api/history?mode=day|month|filter&metric=pm25` returns chart points.
 - `GET /api/files?dir=/log` lists log files and `alerts.log`.
 - `GET /api/files?dir=/cam` lists camera images.
-- `GET /download?path=/log/YYYYMMDD.dat` downloads SD files.
+- `GET /download?path=/log/YYYYMMDD.csv` downloads SD files.
 - `GET /image?path=/cam/pic_YYYYMMDD_HHMMSS.jpg` streams a JPEG preview.
 - `GET /config.json` downloads the active configuration file.
 - `POST /config.json` uploads a replacement configuration file and restarts the station after validation.

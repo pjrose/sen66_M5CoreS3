@@ -345,6 +345,26 @@ void serviceFilterBaselineCapture() {
     Ui.updateBaselineStatus(settings);
 }
 
+void captureCameraSnapshot(const char* reason) {
+    String path;
+    const uint32_t now = static_cast<uint32_t>(time(nullptr));
+    if (Camera.capture(now, &path)) {
+        const String msg = String("Camera saved ") + path;
+        logLine(msg);
+        Ui.addEvent(msg);
+        Logger.appendAlert(msg, now);
+        String recent[5];
+        const size_t count = Camera.recentImages(recent, 5);
+        Ui.updateCameraRoll(recent, count);
+        return;
+    }
+
+    const String msg = String("Camera failed") + (reason ? String(" (") + reason + ")" : "") + ": " + Camera.lastError();
+    logLine(msg);
+    Ui.addEvent(msg);
+    Logger.appendAlert(msg, now);
+}
+
 void serviceNetwork(void*) {
     uint32_t lastWifiAttempt = 0;
     uint32_t lastMqttAttempt = 0;
@@ -521,6 +541,9 @@ void applyUiControls() {
     if (Ui.baselineResetRequested()) {
         startFilterBaselineCapture();
     }
+    if (Ui.cameraSnapshotRequested()) {
+        captureCameraSnapshot("manual");
+    }
     if (Ui.silenceRequested()) {
         Audio.silence();
     }
@@ -553,6 +576,8 @@ void handleDisplayPower() {
                 if (uiReady) {
                     Ui.updateCameraRoll(recent, count);
                 }
+            } else {
+                logf("Camera wake capture failed: %s", Camera.lastError().c_str());
             }
         }
     }

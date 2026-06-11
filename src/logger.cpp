@@ -121,9 +121,29 @@ bool DataLogger::append(const SensorSample& sample) {
         lastError_ = "Daily log open failed";
         return false;
     }
-    const size_t written = file.write(reinterpret_cast<const uint8_t*>(&record), sizeof(record));
+    const bool headerOk = writeCsvHeaderIfNeeded(file);
+    time_t t = sample.timestamp;
+    struct tm tmv {};
+    localtime_r(&t, &tmv);
+    char datetime[22];
+    snprintf(datetime, sizeof(datetime), "%04d-%02d-%02d %02d:%02d:%02d",
+             tmv.tm_year + 1900, tmv.tm_mon + 1, tmv.tm_mday, tmv.tm_hour, tmv.tm_min, tmv.tm_sec);
+    file.printf("%lu,%s,%u,%.1f,%.1f,%.1f,%.1f,%.2f,%.2f,%.1f,%.1f,%u\n",
+                static_cast<unsigned long>(sample.timestamp),
+                datetime,
+                sample.co2,
+                sample.pm1p0,
+                sample.pm2p5,
+                sample.pm4p0,
+                sample.pm10p0,
+                sample.temperature,
+                sample.humidity,
+                sample.vocIndex,
+                sample.noxIndex,
+                record.quality);
+    const bool writeOk = file.getWriteError() == 0;
     file.close();
-    if (written != sizeof(record)) {
+    if (!headerOk || !writeOk) {
         lastError_ = "Daily log write short";
         return false;
     }
@@ -154,19 +174,66 @@ size_t DataLogger::readDay(uint32_t dayEpoch, Metric metric, HistoryPoint* out, 
     }
     File file = SD.open(dailyPath(dayEpoch), FILE_READ);
     if (!file) {
-        return 0;
+        file = SD.open(binaryDailyPath(dayEpoch), FILE_READ);
+        if (!file) {
+            return 0;
+        }
+        const size_t total = file.size() / sizeof(LogRecord);
+        const size_t stride = std::max<size_t>(1, total / std::max<size_t>(1, std::min(capacity, targetPoints)));
+        size_t count = 0;
+        for (size_t i = 0; i < total && count < capacity; i += stride) {
+            LogRecord record;
+            if (!readRecordAt(file, i, record)) {
+                break;
+            }
+            out[count].timestamp = record.timestamp;
+            out[count].value = metricValue(record, metric);
+            count++;
+        }
+        file.close();
+        return count;
     }
-    const size_t total = file.size() / sizeof(LogRecord);
+
+    size_t total = 0;
+    bool firstLine = true;
+    while (file.available()) {
+        const String line = file.readStringUntil('\n');
+        if (firstLine) {
+            firstLine = false;
+            if (line.startsWith("timestamp")) {
+                continue;
+            }
+        }
+        if (line.length() > 4) {
+            total++;
+        }
+    }
+    file.seek(0);
     const size_t stride = std::max<size_t>(1, total / std::max<size_t>(1, std::min(capacity, targetPoints)));
     size_t count = 0;
-    for (size_t i = 0; i < total && count < capacity; i += stride) {
-        LogRecord record;
-        if (!readRecordAt(file, i, record)) {
-            break;
+    size_t row = 0;
+    firstLine = true;
+    while (file.available() && count < capacity) {
+        String line = file.readStringUntil('\n');
+        line.trim();
+        if (firstLine) {
+            firstLine = false;
+            if (line.startsWith("timestamp")) {
+                continue;
+            }
         }
-        out[count].timestamp = record.timestamp;
-        out[count].value = metricValue(record, metric);
-        count++;
+        if (line.length() <= 4) {
+            continue;
+        }
+        if ((row++ % stride) != 0) {
+            continue;
+        }
+        LogRecord record;
+        if (parseCsvRecord(line, record)) {
+            out[count].timestamp = record.timestamp;
+            out[count].value = metricValue(record, metric);
+            count++;
+        }
     }
     file.close();
     return count;
@@ -354,7 +421,51 @@ bool DataLogger::writeSummary(const HourSummaryRecord& record) {
 }
 
 String DataLogger::dailyPath(uint32_t epoch) const {
+    return "/log/" + dateStamp(epoch) + ".csv";
+}
+
+String DataLogger::binaryDailyPath(uint32_t epoch) const {
     return "/log/" + dateStamp(epoch) + ".dat";
+}
+
+bool DataLogger::writeCsvHeaderIfNeeded(File& file) {
+    if (file.size() > 0) {
+        return true;
+    }
+    file.println("timestamp,datetime,co2_ppm,pm1_ugm3,pm25_ugm3,pm4_ugm3,pm10_ugm3,temp_c,humidity_pct,voc_index,nox_index,quality");
+    return file.getWriteError() == 0;
+}
+
+bool DataLogger::parseCsvRecord(const String& line, LogRecord& record) const {
+    String fields[12];
+    int start = 0;
+    for (uint8_t i = 0; i < 12; ++i) {
+        const int comma = line.indexOf(',', start);
+        if (comma < 0) {
+            fields[i] = line.substring(start);
+            if (i < 11) {
+                return false;
+            }
+            break;
+        }
+        fields[i] = line.substring(start, comma);
+        start = comma + 1;
+    }
+
+    record = LogRecord{};
+    record.timestamp = static_cast<uint32_t>(fields[0].toInt());
+    record.co2 = static_cast<uint16_t>(fields[2].toInt());
+    record.pm1_x10 = clampU16(fields[3].toFloat(), 10.0f);
+    record.pm25_x10 = clampU16(fields[4].toFloat(), 10.0f);
+    record.pm4_x10 = clampU16(fields[5].toFloat(), 10.0f);
+    record.pm10_x10 = clampU16(fields[6].toFloat(), 10.0f);
+    record.temp_x100 = clampI16(fields[7].toFloat(), 100.0f);
+    record.hum_x100 = clampU16(fields[8].toFloat(), 100.0f);
+    record.voc_x10 = clampU16(fields[9].toFloat(), 10.0f);
+    record.nox_x10 = clampU16(fields[10].toFloat(), 10.0f);
+    record.version = kLogVersion;
+    record.quality = static_cast<uint8_t>(fields[11].toInt());
+    return record.timestamp > 0;
 }
 
 int16_t DataLogger::metricValue(const LogRecord& record, Metric metric) const {
