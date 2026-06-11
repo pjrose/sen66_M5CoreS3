@@ -157,13 +157,13 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - Grove VCC is 5 V; power the Adafruit 6331 input from Grove VCC and let the breakout LDO provide 3.3 V for the SEN66.
 - microSD SPI follows the CoreS3 pin map: MISO GPIO 35, MOSI GPIO 37, SCK GPIO 36, CS GPIO 4.
 - GC0308 camera uses the current M5Stack CoreS3 RGB565 camera path, then compresses to JPEG before saving.
-- The LTR-553 proximity/ALS path is currently disabled because direct polling of the CoreS3 internal I2C bus interfered with touch input. Camera snapshots are manual via `Snap` and also attempted when the display wakes from a dimmed state.
+- The LTR-553 proximity sensor is polled cautiously through M5Unified's shared internal I2C bus and shown on the maintenance screen. Camera snapshots are manual via `Snap` and also attempted when the display wakes from a dimmed state.
 
 ## Modules
 
 - `config.*`: SD init, `/config.json`, directory creation.
 - `sensor_manager.*`: SEN66 init, warmup, standby, averaged reads, CO2 calibration.
-- `logger.*`: 24-byte daily binary records, 48-byte hourly summaries, downsampled history reads, alert log.
+- `logger.*`: Excel-friendly daily CSV records, 48-byte hourly summaries, downsampled history reads, alert log.
 - `ui_manager.*`: LVGL dark glass UI, swipe screens, dashboard, chart, event log, settings/camera roll, maintenance diagnostics.
 - `audio_manager.*`: M5Unified I2S one-shot walk-up chirps and mute behavior.
 - `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 10,000-file rotation.

@@ -22,6 +22,7 @@ public:
     void updateCameraRoll(const String* paths, size_t count);
     void updateBaselineStatus(const AppSettings& settings);
     void updateMaintenance(const String& text);
+    void updateProximityMonitor(const String& text);
     bool silenceRequested();
     bool brightnessChanged(uint8_t& value);
     bool volumeChanged(uint8_t& value);
@@ -85,6 +86,7 @@ private:
     lv_obj_t* ftpSwitch_ = nullptr;
     lv_obj_t* baselineStatusLabel_ = nullptr;
     lv_obj_t* maintenanceLabel_ = nullptr;
+    lv_obj_t* proximityLabel_ = nullptr;
     lv_obj_t* cameraRollLabels_[5] = {nullptr, nullptr, nullptr, nullptr, nullptr};
     String cameraRollPaths_[5];
 

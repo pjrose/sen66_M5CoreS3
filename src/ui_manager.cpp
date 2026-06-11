@@ -495,10 +495,23 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_style_text_font(maintTitle, &lv_font_montserrat_16, 0);
     lv_label_set_text(maintTitle, "Maintenance");
 
+    lv_obj_t* proxPanel = lv_obj_create(screens_[4]);
+    lv_obj_add_style(proxPanel, &styleGlass_, 0);
+    lv_obj_set_pos(proxPanel, 196, 4);
+    lv_obj_set_size(proxPanel, 118, 42);
+    lv_obj_clear_flag(proxPanel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(proxPanel, 4, 0);
+
+    proximityLabel_ = lv_label_create(proxPanel);
+    lv_obj_set_width(proximityLabel_, 108);
+    lv_obj_set_style_text_font(proximityLabel_, &lv_font_montserrat_12, 0);
+    lv_label_set_long_mode(proximityLabel_, LV_LABEL_LONG_WRAP);
+    lv_label_set_text(proximityLabel_, "Prox\n--");
+
     lv_obj_t* maintPanel = lv_obj_create(screens_[4]);
     lv_obj_add_style(maintPanel, &styleGlass_, 0);
-    lv_obj_set_pos(maintPanel, 6, 30);
-    lv_obj_set_size(maintPanel, 308, 164);
+    lv_obj_set_pos(maintPanel, 6, 50);
+    lv_obj_set_size(maintPanel, 308, 144);
     lv_obj_set_scroll_dir(maintPanel, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(maintPanel, LV_SCROLLBAR_MODE_AUTO);
 
@@ -690,6 +703,12 @@ void UiManager::updateBaselineStatus(const AppSettings& settings) {
 void UiManager::updateMaintenance(const String& text) {
     if (maintenanceLabel_) {
         lv_label_set_text(maintenanceLabel_, text.c_str());
+    }
+}
+
+void UiManager::updateProximityMonitor(const String& text) {
+    if (proximityLabel_) {
+        lv_label_set_text(proximityLabel_, text.c_str());
     }
 }
 

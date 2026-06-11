@@ -3,6 +3,7 @@
 #include <M5Unified.h>
 #include <PubSubClient.h>
 #include <SD.h>
+#include <algorithm>
 #include <WiFi.h>
 #include <driver/gpio.h>
 #include <esp_system.h>
@@ -29,6 +30,8 @@ constexpr uint32_t kStatusPaintMs = 1000;
 constexpr uint32_t kChartRefreshMs = 30000;
 constexpr uint32_t kNetworkRetryMs = 10000;
 constexpr uint32_t kNtpRefreshMs = 24UL * 60UL * 60UL * 1000UL;
+constexpr uint32_t kProximityPollMs = 1000;
+constexpr uint32_t kProximityI2cHz = 100000;
 constexpr bool kRandomAlarmTestMode = false;
 
 WiFiClient wifiClient;
@@ -60,6 +63,11 @@ bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
 bool uiReady = false;
+bool proximityReady = false;
+bool lastProximityOk = false;
+uint16_t lastProximityRaw = 0;
+uint32_t lastProximityPollMs = 0;
+uint32_t lastProximityOkMs = 0;
 portMUX_TYPE debugLineMux = portMUX_INITIALIZER_UNLOCKED;
 char latestDebugLine[160] = {0};
 
@@ -117,17 +125,71 @@ void setState(DeviceState next) {
 }
 
 bool configureProximitySensor(const AppSettings& settings) {
-    (void)settings;
-    logLine("Proximity/ALS direct I2C disabled while validating CoreS3 touch bus");
-    return false;
+    const uint16_t threshold = std::max<uint16_t>(1, settings.proximityThreshold);
+    bool ok = true;
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x80, 0x03, kProximityI2cHz);
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x81, 0x03, kProximityI2cHz);
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x90, threshold & 0xFF, kProximityI2cHz);
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x91, threshold >> 8, kProximityI2cHz);
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x92, 0x00, kProximityI2cHz);
+    ok &= M5.In_I2C.writeRegister8(kLtr553Address, 0x93, 0x08, kProximityI2cHz);
+    proximityReady = ok;
+    if (ok) {
+        logf("Proximity monitor enabled: threshold=%u", threshold);
+    } else {
+        logLine("Proximity monitor unavailable: LTR-553 did not answer");
+    }
+    return ok;
+}
+
+bool readLtrWord(uint8_t lowReg, uint16_t& value) {
+    uint8_t buf[2] = {0, 0};
+    if (!M5.In_I2C.readRegister(kLtr553Address, lowReg, buf, sizeof(buf), kProximityI2cHz)) {
+        return false;
+    }
+    value = static_cast<uint16_t>(buf[0]) | (static_cast<uint16_t>(buf[1]) << 8);
+    return true;
+}
+
+bool pollProximity(bool force = false) {
+    if (!proximityReady) {
+        lastProximityOk = false;
+        return false;
+    }
+    const uint32_t nowMs = millis();
+    if (!force && nowMs - lastProximityPollMs < kProximityPollMs) {
+        return lastProximityOk;
+    }
+    lastProximityPollMs = nowMs;
+    uint16_t raw = 0;
+    lastProximityOk = readLtrWord(0x8D, raw);
+    if (lastProximityOk) {
+        lastProximityRaw = raw;
+        lastProximityOkMs = nowMs;
+    }
+    return lastProximityOk;
 }
 
 bool personDetected() {
-    return false;
+    pollProximity(false);
+    return lastProximityOk && lastProximityRaw >= Config.settings().proximityThreshold;
 }
 
 uint16_t ambientLightRaw() {
     return 100;
+}
+
+String proximityMonitorText() {
+    pollProximity(false);
+    const uint16_t threshold = Config.settings().proximityThreshold;
+    if (!proximityReady) {
+        return "Prox OFF\nLTR --";
+    }
+    if (!lastProximityOk) {
+        return "Prox ERR\nT " + String(threshold);
+    }
+    const bool near = lastProximityRaw >= threshold;
+    return "Prox " + String(lastProximityRaw) + "\n" + String(near ? "NEAR" : "far") + " T" + String(threshold);
 }
 
 void applyTimezone() {
@@ -673,6 +735,7 @@ void paintStatusAndSample() {
         Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
         Ui.updateBaselineStatus(Config.settings());
         Ui.updateMaintenance(maintenanceText());
+        Ui.updateProximityMonitor(proximityMonitorText());
     }
 }
 

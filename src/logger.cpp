@@ -11,6 +11,7 @@ namespace {
 constexpr uint8_t kLogVersion = 1;
 constexpr size_t kMaxBaselineHours = 168;
 constexpr size_t kHoursPerDay = 24;
+constexpr const char* kCsvHeader = "timestamp,datetime,co2_ppm,pm1_ugm3,pm25_ugm3,pm4_ugm3,pm10_ugm3,temp_c,humidity_pct,voc_index,nox_index,quality";
 
 String two(int value) {
     return value < 10 ? "0" + String(value) : String(value);
@@ -116,12 +117,17 @@ bool DataLogger::append(const SensorSample& sample) {
 
     flushHourIfNeeded(sample.timestamp);
 
-    File file = SD.open(dailyPath(sample.timestamp), FILE_APPEND);
+    const String path = dailyPath(sample.timestamp);
+    if (!ensureCsvHeader(path)) {
+        lastError_ = "Daily log header failed";
+        return false;
+    }
+
+    File file = SD.open(path, FILE_APPEND);
     if (!file) {
         lastError_ = "Daily log open failed";
         return false;
     }
-    const bool headerOk = writeCsvHeaderIfNeeded(file);
     time_t t = sample.timestamp;
     struct tm tmv {};
     localtime_r(&t, &tmv);
@@ -143,7 +149,7 @@ bool DataLogger::append(const SensorSample& sample) {
                 record.quality);
     const bool writeOk = file.getWriteError() == 0;
     file.close();
-    if (!headerOk || !writeOk) {
+    if (!writeOk) {
         lastError_ = "Daily log write short";
         return false;
     }
@@ -428,11 +434,80 @@ String DataLogger::binaryDailyPath(uint32_t epoch) const {
     return "/log/" + dateStamp(epoch) + ".dat";
 }
 
+bool DataLogger::ensureCsvHeader(const String& path) {
+    if (!SD.exists(path)) {
+        File created = SD.open(path, FILE_WRITE);
+        if (!created) {
+            return false;
+        }
+        const bool ok = writeCsvHeaderIfNeeded(created);
+        created.close();
+        return ok;
+    }
+
+    File existing = SD.open(path, FILE_READ);
+    if (!existing) {
+        return false;
+    }
+    if (existing.size() == 0) {
+        existing.close();
+        File empty = SD.open(path, FILE_WRITE);
+        if (!empty) {
+            return false;
+        }
+        const bool ok = writeCsvHeaderIfNeeded(empty);
+        empty.close();
+        return ok;
+    }
+
+    String firstLine = existing.readStringUntil('\n');
+    firstLine.trim();
+    if (firstLine.startsWith("timestamp,")) {
+        existing.close();
+        return true;
+    }
+
+    const String tempPath = path + ".tmp";
+    SD.remove(tempPath);
+    File repaired = SD.open(tempPath, FILE_WRITE);
+    if (!repaired) {
+        existing.close();
+        return false;
+    }
+    repaired.println(kCsvHeader);
+    existing.seek(0);
+    uint8_t buffer[128];
+    while (existing.available()) {
+        const size_t count = existing.read(buffer, sizeof(buffer));
+        if (count == 0) {
+            break;
+        }
+        if (repaired.write(buffer, count) != count) {
+            existing.close();
+            repaired.close();
+            SD.remove(tempPath);
+            return false;
+        }
+    }
+    const bool ok = repaired.getWriteError() == 0;
+    existing.close();
+    repaired.close();
+    if (!ok) {
+        SD.remove(tempPath);
+        return false;
+    }
+    if (!SD.remove(path)) {
+        SD.remove(tempPath);
+        return false;
+    }
+    return SD.rename(tempPath, path);
+}
+
 bool DataLogger::writeCsvHeaderIfNeeded(File& file) {
     if (file.size() > 0) {
         return true;
     }
-    file.println("timestamp,datetime,co2_ppm,pm1_ugm3,pm25_ugm3,pm4_ugm3,pm10_ugm3,temp_c,humidity_pct,voc_index,nox_index,quality");
+    file.println(kCsvHeader);
     return file.getWriteError() == 0;
 }
 
