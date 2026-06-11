@@ -38,6 +38,7 @@ private:
 
     void createStyles();
     void createScreens(const AppSettings& settings);
+    void createNav(lv_obj_t* screen);
     lv_obj_t* createCard(lv_obj_t* parent, int x, int y, int w, int h);
     void setLabel(lv_obj_t* label, const String& text);
     lv_color_t aqiColor(const SensorSample& sample) const;
@@ -58,6 +59,7 @@ private:
 
     static constexpr uint8_t kScreenCount = 5;
     lv_obj_t* screens_[kScreenCount] = {nullptr, nullptr, nullptr, nullptr, nullptr};
+    lv_obj_t* navButtons_[kScreenCount][kScreenCount] = {};
     lv_obj_t* statusLabel_ = nullptr;
     lv_obj_t* primaryArc_ = nullptr;
     lv_obj_t* primaryValue_ = nullptr;

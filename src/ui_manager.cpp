@@ -124,6 +124,7 @@ void UiManager::eventCb(lv_event_t* e) {
         case 2: Ui.showScreen(1, true); break;
         case 3: Ui.showScreen(2, true); break;
         case 4: Ui.showScreen(3, true); break;
+        case 5: Ui.showScreen(4, true); break;
         case 10: Ui.silenceRequested_ = true; break;
         case 20: Ui.monthMode_ = false; Ui.filterChartMode_ = false; break;
         case 21: Ui.monthMode_ = true; Ui.filterChartMode_ = false; break;
@@ -197,6 +198,33 @@ lv_obj_t* UiManager::createCard(lv_obj_t* parent, int x, int y, int w, int h) {
     return card;
 }
 
+void UiManager::createNav(lv_obj_t* screen) {
+    const char* labels[] = {"D", "C", "E", "S", "M"};
+    for (uint8_t i = 0; i < kScreenCount; ++i) {
+        lv_obj_t* btn = lv_btn_create(screen);
+        lv_obj_set_pos(btn, 222 + i * 19, 3);
+        lv_obj_set_size(btn, 17, 17);
+        lv_obj_set_style_radius(btn, 4, 0);
+        lv_obj_set_style_pad_all(btn, 0, 0);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0x2A2A2A), 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_80, 0);
+        lv_obj_set_style_border_width(btn, 1, 0);
+        lv_obj_set_style_border_color(btn, lv_color_hex(0x666666), 0);
+        lv_obj_add_event_cb(btn, eventCb, LV_EVENT_CLICKED, reinterpret_cast<void*>(static_cast<uintptr_t>(i + 1)));
+
+        lv_obj_t* label = lv_label_create(btn);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
+        lv_label_set_text(label, labels[i]);
+        lv_obj_center(label);
+
+        const uint8_t screenIndex = static_cast<uint8_t>(screen == screens_[0] ? 0 :
+                                   screen == screens_[1] ? 1 :
+                                   screen == screens_[2] ? 2 :
+                                   screen == screens_[3] ? 3 : 4);
+        navButtons_[screenIndex][i] = btn;
+    }
+}
+
 void UiManager::createScreens(const AppSettings& settings) {
     for (auto& screen : screens_) {
         screen = lv_obj_create(nullptr);
@@ -210,7 +238,7 @@ void UiManager::createScreens(const AppSettings& settings) {
 
     statusLabel_ = lv_label_create(screens_[0]);
     lv_obj_set_pos(statusLabel_, 8, 5);
-    lv_obj_set_width(statusLabel_, 304);
+    lv_obj_set_width(statusLabel_, 208);
     lv_label_set_text(statusLabel_, "WiFi --  MQTT --  SD --  00:00");
 
     primaryArc_ = lv_arc_create(screens_[0]);
@@ -286,9 +314,13 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_center(filterLabel);
 
     eventList_ = lv_list_create(screens_[2]);
-    lv_obj_set_pos(eventList_, 6, 8);
-    lv_obj_set_size(eventList_, 308, 224);
+    lv_obj_set_pos(eventList_, 6, 30);
+    lv_obj_set_size(eventList_, 308, 202);
 
+    lv_obj_t* brightLabel = lv_label_create(screens_[3]);
+    lv_obj_set_pos(brightLabel, 8, 20);
+    lv_obj_set_style_text_font(brightLabel, &lv_font_montserrat_12, 0);
+    lv_label_set_text(brightLabel, "Brt");
     brightnessSlider_ = lv_slider_create(screens_[3]);
     lv_obj_set_pos(brightnessSlider_, 38, 24);
     lv_obj_set_width(brightnessSlider_, 244);
@@ -296,6 +328,10 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_slider_set_value(brightnessSlider_, settings.brightness, LV_ANIM_OFF);
     lv_obj_add_event_cb(brightnessSlider_, [](lv_event_t*) { Ui.brightnessChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
 
+    lv_obj_t* volumeLabel = lv_label_create(screens_[3]);
+    lv_obj_set_pos(volumeLabel, 8, 54);
+    lv_obj_set_style_text_font(volumeLabel, &lv_font_montserrat_12, 0);
+    lv_label_set_text(volumeLabel, "Vol");
     volumeSlider_ = lv_slider_create(screens_[3]);
     lv_obj_set_pos(volumeSlider_, 38, 58);
     lv_obj_set_width(volumeSlider_, 244);
@@ -303,6 +339,10 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_slider_set_value(volumeSlider_, settings.buzzerVolume, LV_ANIM_OFF);
     lv_obj_add_event_cb(volumeSlider_, [](lv_event_t*) { Ui.volumeChanged_ = true; }, LV_EVENT_VALUE_CHANGED, nullptr);
 
+    lv_obj_t* ftpLabel = lv_label_create(screens_[3]);
+    lv_obj_set_pos(ftpLabel, 8, 94);
+    lv_obj_set_style_text_font(ftpLabel, &lv_font_montserrat_12, 0);
+    lv_label_set_text(ftpLabel, "FTP");
     ftpSwitch_ = lv_switch_create(screens_[3]);
     lv_obj_set_pos(ftpSwitch_, 38, 92);
     if (settings.ftpEnabled) {
@@ -362,6 +402,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(maintenanceLabel_, "Waiting for diagnostics...");
 
     for (uint8_t s = 0; s < kScreenCount; ++s) {
+        createNav(screens_[s]);
         lv_obj_add_event_cb(screens_[s], eventCb, LV_EVENT_GESTURE, nullptr);
     }
 }
@@ -371,6 +412,16 @@ void UiManager::showScreen(uint8_t index, bool animate) {
         return;
     }
     currentScreen_ = index;
+    for (uint8_t s = 0; s < kScreenCount; ++s) {
+        for (uint8_t i = 0; i < kScreenCount; ++i) {
+            if (!navButtons_[s][i]) {
+                continue;
+            }
+            const bool active = i == index;
+            lv_obj_set_style_bg_color(navButtons_[s][i], lv_color_hex(active ? 0x00E676 : 0x2A2A2A), 0);
+            lv_obj_set_style_text_color(lv_obj_get_child(navButtons_[s][i], 0), lv_color_hex(active ? 0x101010 : 0xF5F5F5), 0);
+        }
+    }
     if (animate) {
         lv_scr_load_anim(screens_[index], LV_SCR_LOAD_ANIM_MOVE_LEFT, 180, 0, false);
     } else {
