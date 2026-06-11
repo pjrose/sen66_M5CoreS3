@@ -15,6 +15,8 @@ public:
 
 private:
     FtpServer server_;
+    String user_;
+    String password_;
     bool enabled_ = false;
     bool started_ = false;
 };
@@ -22,4 +24,3 @@ private:
 extern FtpManager Ftp;
 
 }  // namespace aq
-
