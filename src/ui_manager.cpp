@@ -411,8 +411,11 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_size(brightnessSlider_, 156, 14);
     lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(brightnessSlider_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0xFFD600), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(brightnessSlider_, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(brightnessSlider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_border_color(brightnessSlider_, lv_color_hex(0xFFD600), LV_PART_KNOB);
+    lv_obj_set_style_border_width(brightnessSlider_, 2, LV_PART_KNOB);
     lv_obj_set_style_pad_all(brightnessSlider_, 2, LV_PART_KNOB);
     lv_slider_set_range(brightnessSlider_, 60, 255);
     lv_slider_set_value(brightnessSlider_, std::max<uint8_t>(60, settings.brightness), LV_ANIM_OFF);
@@ -431,8 +434,11 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_size(volumeSlider_, 156, 14);
     lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x2A2A2A), 0);
     lv_obj_set_style_bg_opa(volumeSlider_, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0x00E676), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0xFFD600), LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(volumeSlider_, LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_color(volumeSlider_, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_border_color(volumeSlider_, lv_color_hex(0xFFD600), LV_PART_KNOB);
+    lv_obj_set_style_border_width(volumeSlider_, 2, LV_PART_KNOB);
     lv_obj_set_style_pad_all(volumeSlider_, 2, LV_PART_KNOB);
     lv_slider_set_range(volumeSlider_, 0, 255);
     lv_slider_set_value(volumeSlider_, settings.buzzerVolume, LV_ANIM_OFF);
