@@ -32,8 +32,10 @@ int metricScale(Metric metric) {
 }
 
 bool UiManager::begin(const AppSettings& settings) {
+    Serial.println("[ui] begin");
     lv_init();
     M5.Display.setBrightness(settings.brightness);
+    M5.Display.setSwapBytes(false);
 
     const size_t pixels = kWidth * kDrawRows;
     buf1_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
@@ -43,8 +45,10 @@ bool UiManager::begin(const AppSettings& settings) {
         M5.Display.setTextDatum(top_left);
         M5.Display.drawString("UI init failed", 12, 12);
         M5.Display.drawString("No DMA display buffer", 12, 34);
+        Serial.println("[ui] no DMA display buffer");
         return false;
     }
+    Serial.printf("[ui] draw buffer ok: %u bytes\r\n", static_cast<unsigned int>(pixels * sizeof(lv_color_t)));
 
     lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, pixels);
     lv_disp_drv_init(&dispDrv_);
@@ -62,6 +66,9 @@ bool UiManager::begin(const AppSettings& settings) {
     createStyles();
     createScreens(settings);
     showScreen(0, false);
+    lv_obj_invalidate(screens_[0]);
+    lv_refr_now(nullptr);
+    Serial.println("[ui] first refresh requested");
     return true;
 }
 
@@ -72,6 +79,17 @@ void UiManager::tick() {
 void UiManager::flushCb(lv_disp_drv_t* disp, const lv_area_t* area, lv_color_t* colorP) {
     const int32_t w = area->x2 - area->x1 + 1;
     const int32_t h = area->y2 - area->y1 + 1;
+    if (Ui.flushLogCount_ < 8) {
+        const uint16_t first = reinterpret_cast<uint16_t*>(colorP)[0];
+        Serial.printf("[ui] flush %u: x=%d y=%d w=%d h=%d first=0x%04x\r\n",
+                      Ui.flushLogCount_,
+                      static_cast<int>(area->x1),
+                      static_cast<int>(area->y1),
+                      static_cast<int>(w),
+                      static_cast<int>(h),
+                      first);
+        Ui.flushLogCount_++;
+    }
     M5.Display.startWrite();
     M5.Display.pushImage(area->x1, area->y1, w, h, reinterpret_cast<uint16_t*>(colorP));
     M5.Display.endWrite();
@@ -183,6 +201,10 @@ void UiManager::createScreens(const AppSettings& settings) {
     for (auto& screen : screens_) {
         screen = lv_obj_create(nullptr);
         lv_obj_add_style(screen, &styleBg_, 0);
+        lv_obj_set_style_bg_color(screen, lv_color_hex(0x121212), 0);
+        lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(screen, 0, 0);
+        lv_obj_set_style_pad_all(screen, 0, 0);
         lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
     }
 
@@ -349,7 +371,11 @@ void UiManager::showScreen(uint8_t index, bool animate) {
         return;
     }
     currentScreen_ = index;
-    lv_scr_load_anim(screens_[index], animate ? LV_SCR_LOAD_ANIM_MOVE_LEFT : LV_SCR_LOAD_ANIM_NONE, 180, 0, false);
+    if (animate) {
+        lv_scr_load_anim(screens_[index], LV_SCR_LOAD_ANIM_MOVE_LEFT, 180, 0, false);
+    } else {
+        lv_scr_load(screens_[index]);
+    }
 }
 
 void UiManager::updateSample(const SensorSample& sample) {

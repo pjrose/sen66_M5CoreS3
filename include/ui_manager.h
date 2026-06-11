@@ -49,6 +49,7 @@ private:
     lv_disp_drv_t dispDrv_;
     lv_indev_drv_t indevDrv_;
     lv_indev_t* touch_ = nullptr;
+    uint8_t flushLogCount_ = 0;
 
     lv_style_t styleBg_;
     lv_style_t styleGlass_;
