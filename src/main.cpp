@@ -771,7 +771,7 @@ void setup() {
     logLine("M5.begin starting");
     M5.begin(cfg);
     logLine("M5.begin ok");
-    M5.Display.setRotation(1);
+    M5.Display.setRotation(3);
     M5.Display.setBrightness(160);
     M5.Display.fillScreen(TFT_BLACK);
     M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
