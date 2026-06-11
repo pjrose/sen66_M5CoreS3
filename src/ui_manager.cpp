@@ -241,7 +241,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_obj_set_width(statusLabel_, 120);
     lv_obj_set_style_text_font(statusLabel_, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_line_space(statusLabel_, 1, 0);
-    lv_label_set_text(statusLabel_, "WiFi --\nMQTT --\nSD --\n00:00\nACTIVE");
+    lv_label_set_text(statusLabel_, "WiFi --\nMQTT --\nSD --\n--/-- --:-- --\nACTIVE");
 
     lv_obj_t* particleCard = createCard(screens_[0], 8, 92, 120, 96);
     primaryCaption_ = lv_label_create(particleCard);
@@ -256,7 +256,7 @@ void UiManager::createScreens(const AppSettings& settings) {
     lv_label_set_text(primaryValue_, "--");
     lv_obj_align(primaryValue_, LV_ALIGN_BOTTOM_MID, 0, -8);
 
-    const char* names[] = {"CO2", "Temp", "Hum", "VOC", "NOx", "PM1", "PM4", "PM10"};
+    const char* names[] = {"Temp", "Hum", "CO2", "VOC", "NOx", "PM1", "PM4", "PM10"};
     for (int i = 0; i < 8; ++i) {
         const int col = i % 2;
         const int row = i / 2;
@@ -437,9 +437,9 @@ void UiManager::updateSample(const SensorSample& sample) {
     }
     lv_obj_set_style_text_color(primaryValue_, aqiColor(sample), 0);
     lv_label_set_text(primaryValue_, isfinite(sample.pm2p5) ? String(sample.pm2p5, 1).c_str() : "--");
-    lv_label_set_text_fmt(metricLabels_[0], "CO2\n%u ppm", sample.co2);
-    lv_label_set_text(metricLabels_[1], ("Temp\n" + fmtFloat(sample.temperature, 1, " C")).c_str());
-    lv_label_set_text(metricLabels_[2], ("Hum\n" + fmtFloat(sample.humidity, 0, "%")).c_str());
+    lv_label_set_text(metricLabels_[0], ("Temp\n" + fmtFloat(sample.temperature, 1, " C")).c_str());
+    lv_label_set_text(metricLabels_[1], ("Hum\n" + fmtFloat(sample.humidity, 0, "%")).c_str());
+    lv_label_set_text_fmt(metricLabels_[2], "CO2\n%u ppm", sample.co2);
     lv_label_set_text(metricLabels_[3], ("VOC\n" + fmtFloat(sample.vocIndex, 0, "")).c_str());
     lv_label_set_text(metricLabels_[4], ("NOx\n" + fmtFloat(sample.noxIndex, 0, "")).c_str());
     lv_label_set_text(metricLabels_[5], ("PM1\n" + fmtFloat(sample.pm1p0, 1, "")).c_str());
@@ -457,9 +457,13 @@ void UiManager::updateStatus(bool wifi, bool mqtt, bool sd, DeviceState state) {
     time_t now = time(nullptr);
     struct tm tmv {};
     localtime_r(&now, &tmv);
-    lv_label_set_text_fmt(statusLabel_, "WiFi %s\nMQTT %s\nSD %s\n%02d:%02d\n%s",
+    char timeText[18] = "--/-- --:-- --";
+    if (now > 1700000000) {
+        strftime(timeText, sizeof(timeText), "%m/%d %I:%M %p", &tmv);
+    }
+    lv_label_set_text_fmt(statusLabel_, "WiFi %s\nMQTT %s\nSD %s\n%s\n%s",
                           wifi ? "ok" : "--", mqtt ? "ok" : "--", sd ? "ok" : "--",
-                          tmv.tm_hour, tmv.tm_min, stateText);
+                          timeText, stateText);
 }
 
 void UiManager::updateAlarm(bool active, bool muted) {
