@@ -12,7 +12,7 @@ UiManager Ui;
 namespace {
 constexpr int kWidth = 320;
 constexpr int kHeight = 240;
-constexpr int kDrawRows = 32;
+constexpr int kDrawRows = 16;
 
 String fmtFloat(float value, uint8_t decimals, const char* suffix) {
     if (!isfinite(value)) {
@@ -37,16 +37,16 @@ bool UiManager::begin(const AppSettings& settings) {
 
     const size_t pixels = kWidth * kDrawRows;
     buf1_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
-    buf2_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
-    if (!buf1_ || !buf2_) {
-        buf1_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_SPIRAM));
-        buf2_ = static_cast<lv_color_t*>(heap_caps_malloc(pixels * sizeof(lv_color_t), MALLOC_CAP_SPIRAM));
-    }
-    if (!buf1_ || !buf2_) {
+    if (!buf1_) {
+        M5.Display.fillScreen(TFT_BLACK);
+        M5.Display.setTextColor(TFT_RED, TFT_BLACK);
+        M5.Display.setTextDatum(top_left);
+        M5.Display.drawString("UI init failed", 12, 12);
+        M5.Display.drawString("No DMA display buffer", 12, 34);
         return false;
     }
 
-    lv_disp_draw_buf_init(&drawBuf_, buf1_, buf2_, pixels);
+    lv_disp_draw_buf_init(&drawBuf_, buf1_, nullptr, pixels);
     lv_disp_drv_init(&dispDrv_);
     dispDrv_.hor_res = kWidth;
     dispDrv_.ver_res = kHeight;

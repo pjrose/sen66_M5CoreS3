@@ -51,6 +51,7 @@ uint32_t lastBaselineCheckMs = 0;
 bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
+bool uiReady = false;
 
 void setState(DeviceState next) {
     state = next;
@@ -403,13 +404,17 @@ void serviceAcquisition(void*) {
                 if (nowAlert && !previousAlertActive) {
                     const String msg = alertMessage(sample);
                     Logger.appendAlert(msg, sample.timestamp);
-                    Ui.addEvent(msg);
+                    if (uiReady) {
+                        Ui.addEvent(msg);
+                    }
                 }
                 previousAlertActive = nowAlert;
             } else {
                 const String msg = "Sensor Comm Error";
                 Logger.appendAlert(msg, static_cast<uint32_t>(time(nullptr)));
-                Ui.addEvent(msg);
+                if (uiReady) {
+                    Ui.addEvent(msg);
+                }
                 setState(DeviceState::Error);
             }
 
@@ -427,6 +432,9 @@ void serviceAcquisition(void*) {
 }
 
 void applyUiControls() {
+    if (!uiReady) {
+        return;
+    }
     uint8_t value = 0;
     if (Ui.brightnessChanged(value)) {
         Config.settings().brightness = value;
@@ -482,7 +490,9 @@ void handleDisplayPower() {
             if (Camera.capture(static_cast<uint32_t>(time(nullptr)), &path)) {
                 String recent[5];
                 const size_t count = Camera.recentImages(recent, 5);
-                Ui.updateCameraRoll(recent, count);
+                if (uiReady) {
+                    Ui.updateCameraRoll(recent, count);
+                }
             }
         }
     }
@@ -514,19 +524,25 @@ void paintStatusAndSample() {
 
     if (xSemaphoreTake(sampleMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
         if (latestSampleReady) {
-            Ui.updateSample(latestSample);
+            if (uiReady) {
+                Ui.updateSample(latestSample);
+            }
             Web.updateSample(latestSample, alertActive, state);
         }
         Audio.setAlarmActive(alertActive);
         Audio.resetMuteIfClear(alertActive);
-        Ui.updateAlarm(alertActive, Audio.muted());
+        if (uiReady) {
+            Ui.updateAlarm(alertActive, Audio.muted());
+        }
         xSemaphoreGive(sampleMutex);
     }
 
-    Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
+    if (uiReady) {
+        Ui.updateStatus(WiFi.status() == WL_CONNECTED, mqtt.connected(), Config.sdReady(), state);
+        Ui.updateBaselineStatus(Config.settings());
+        Ui.updateMaintenance(maintenanceText());
+    }
     Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
-    Ui.updateBaselineStatus(Config.settings());
-    Ui.updateMaintenance(maintenanceText());
 }
 
 }  // namespace
@@ -539,6 +555,10 @@ void setup() {
     M5.begin(cfg);
     M5.Display.setRotation(1);
     M5.Display.setBrightness(160);
+    M5.Display.fillScreen(TFT_BLACK);
+    M5.Display.setTextColor(TFT_WHITE, TFT_BLACK);
+    M5.Display.drawString("CoreS3 Air Station", 12, 12);
+    M5.Display.drawString("Booting...", 12, 34);
 
     sampleMutex = xSemaphoreCreateMutex();
     mqttMutex = xSemaphoreCreateMutex();
@@ -547,16 +567,22 @@ void setup() {
     applyTimezone();
     Logger.begin();
     Audio.begin(Config.settings().buzzerVolume);
-    Ui.begin(Config.settings());
+    uiReady = Ui.begin(Config.settings());
+    if (!uiReady) {
+        Serial.println("UI init failed");
+    }
     Ftp.begin(Config.settings());
     Web.begin();
     configureProximitySensor(Config.settings());
     Sensors.begin(Wire);
-    Camera.begin();
     String recent[5];
-    const size_t recentCount = Camera.recentImages(recent, 5);
-    Ui.updateCameraRoll(recent, recentCount);
-    Ui.updateBaselineStatus(Config.settings());
+    const size_t recentCount = Config.sdReady() ? Camera.recentImages(recent, 5) : 0;
+    if (uiReady) {
+        Ui.updateCameraRoll(recent, recentCount);
+    }
+    if (uiReady) {
+        Ui.updateBaselineStatus(Config.settings());
+    }
 
     lastInteractionMs = millis();
     xTaskCreatePinnedToCore(serviceNetwork, "network", 8192, nullptr, 1, nullptr, 0);
@@ -565,15 +591,19 @@ void setup() {
 
 void loop() {
     M5.update();
-    Ui.tick();
+    if (uiReady) {
+        Ui.tick();
+    }
     Ftp.service();
     Web.service();
     Audio.service(millis());
     applyUiControls();
-    serviceFilterBaselineCapture();
+    if (uiReady) {
+        serviceFilterBaselineCapture();
+    }
     paintStatusAndSample();
 
-    if (millis() - lastChartRefreshMs > kChartRefreshMs) {
+    if (uiReady && millis() - lastChartRefreshMs > kChartRefreshMs) {
         lastChartRefreshMs = millis();
         refreshChart();
     }
