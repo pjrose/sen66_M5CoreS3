@@ -51,6 +51,7 @@ uint32_t lastChartRefreshMs = 0;
 uint32_t lastNtpSyncMs = 0;
 uint32_t lastBaselineCheckMs = 0;
 uint32_t lastHeartbeatMs = 0;
+volatile uint32_t loopCounter = 0;
 bool displayDimmed = false;
 bool wasPersonNearby = false;
 uint32_t lastWalkupChirpMs = 0;
@@ -622,7 +623,40 @@ void paintStatusAndSample() {
         Ui.updateBaselineStatus(Config.settings());
         Ui.updateMaintenance(maintenanceText());
     }
-    Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
+}
+
+void serviceWeb(void*) {
+    logLine("Web task starting");
+    for (;;) {
+        Web.updateNetwork(WiFi.status() == WL_CONNECTED, mqtt.connected());
+        Web.service();
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
+void serviceSerialDiagnostics(void*) {
+    logLine("Serial diagnostics task starting");
+    uint32_t lastLoopCounter = 0;
+    uint32_t lastReportMs = 0;
+    for (;;) {
+        const uint32_t nowMs = millis();
+        if (nowMs - lastReportMs >= 5000UL) {
+            lastReportMs = nowMs;
+            const String wifiText = WiFi.status() == WL_CONNECTED ? WiFi.localIP().toString() : String("offline");
+            const uint32_t loops = loopCounter;
+            logf("Heartbeat: state=%s ui=%s sd=%s wifi=%s mqtt=%s heap=%u loops=%lu delta=%lu",
+                 stateText(state),
+                 uiReady ? "ok" : "off",
+                 Config.sdReady() ? "ok" : "missing",
+                 wifiText.c_str(),
+                 mqtt.connected() ? "connected" : "offline",
+                 ESP.getFreeHeap(),
+                 static_cast<unsigned long>(loops),
+                 static_cast<unsigned long>(loops - lastLoopCounter));
+            lastLoopCounter = loops;
+        }
+        vTaskDelay(pdMS_TO_TICKS(250));
+    }
 }
 
 void serviceSerialHeartbeat() {
@@ -713,6 +747,8 @@ void setup() {
 
     lastInteractionMs = millis();
     logLine("Starting FreeRTOS tasks");
+    xTaskCreatePinnedToCore(serviceSerialDiagnostics, "serial_diag", 4096, nullptr, 1, nullptr, 0);
+    xTaskCreatePinnedToCore(serviceWeb, "web", 6144, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(serviceNetwork, "network", 8192, nullptr, 1, nullptr, 0);
     xTaskCreatePinnedToCore(serviceAcquisition, "acquisition", 8192, nullptr, 1, nullptr, 0);
     logLine("Setup complete");
@@ -724,14 +760,13 @@ void loop() {
         Ui.tick();
     }
     Ftp.service();
-    Web.service();
     Audio.service(millis());
     applyUiControls();
     if (uiReady) {
         serviceFilterBaselineCapture();
     }
     paintStatusAndSample();
-    serviceSerialHeartbeat();
+    loopCounter++;
 
     if (uiReady && millis() - lastChartRefreshMs > kChartRefreshMs) {
         lastChartRefreshMs = millis();
