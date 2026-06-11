@@ -24,15 +24,12 @@ using namespace aq;
 
 namespace {
 
-constexpr uint8_t kInternalSda = 12;
-constexpr uint8_t kInternalScl = 11;
 constexpr int kProximityIntPin = -1;
 constexpr uint32_t kStatusPaintMs = 1000;
 constexpr uint32_t kChartRefreshMs = 30000;
 constexpr uint32_t kNetworkRetryMs = 10000;
 constexpr uint32_t kNtpRefreshMs = 24UL * 60UL * 60UL * 1000UL;
 
-TwoWire InternalI2C(1);
 WiFiClient wifiClient;
 PubSubClient mqtt(wifiClient);
 
@@ -109,55 +106,18 @@ void setState(DeviceState next) {
     state = next;
 }
 
-bool writeLtrRegister(uint8_t reg, uint8_t value) {
-    InternalI2C.beginTransmission(kLtr553Address);
-    InternalI2C.write(reg);
-    InternalI2C.write(value);
-    return InternalI2C.endTransmission() == 0;
-}
-
-uint16_t readLtrWord(uint8_t regLow) {
-    InternalI2C.beginTransmission(kLtr553Address);
-    InternalI2C.write(regLow);
-    if (InternalI2C.endTransmission(false) != 0) {
-        return 0;
-    }
-    if (InternalI2C.requestFrom(kLtr553Address, static_cast<uint8_t>(2)) != 2) {
-        return 0;
-    }
-    const uint8_t lo = InternalI2C.read();
-    const uint8_t hi = InternalI2C.read();
-    return static_cast<uint16_t>(hi << 8 | lo);
-}
-
 bool configureProximitySensor(const AppSettings& settings) {
-    InternalI2C.begin(kInternalSda, kInternalScl, 100000);
-    InternalI2C.setTimeOut(20);
-    InternalI2C.beginTransmission(kLtr553Address);
-    if (InternalI2C.endTransmission() != 0) {
-        return false;
-    }
-
-    writeLtrRegister(0x80, 0x03);
-    writeLtrRegister(0x81, 0x03);
-    writeLtrRegister(0x84, 0x03);
-    writeLtrRegister(0x85, 0x12);
-    writeLtrRegister(0x8F, 0x01);
-
-    const uint16_t threshold = settings.proximityThreshold;
-    writeLtrRegister(0x90, threshold & 0xFF);
-    writeLtrRegister(0x91, threshold >> 8);
-    writeLtrRegister(0x92, 0x00);
-    writeLtrRegister(0x93, 0x00);
-    return true;
+    (void)settings;
+    logLine("Proximity/ALS direct I2C disabled while validating CoreS3 touch bus");
+    return false;
 }
 
 bool personDetected() {
-    return readLtrWord(0x8D) >= Config.settings().proximityThreshold;
+    return false;
 }
 
 uint16_t ambientLightRaw() {
-    return readLtrWord(0x88);
+    return 100;
 }
 
 void applyTimezone() {
@@ -603,16 +563,28 @@ void handleDisplayPower() {
 void serviceRawTouchDiagnostics() {
     const auto detail = M5.Touch.getDetail();
     const bool pressed = detail.isPressed();
+    m5gfx::touch_point_t directTouch;
+    const uint_fast8_t directCount = M5.Display.getTouch(&directTouch, 1);
+    const bool directPressed = directCount > 0;
     const uint32_t nowMs = millis();
     if (pressed && nowMs - lastTouchLogMs > 500UL) {
         lastTouchLogMs = nowMs;
         logf("Touch raw: x=%d y=%d state=0x%02x", detail.x, detail.y, static_cast<unsigned int>(detail.state));
     }
+    if (!pressed && directPressed && nowMs - lastTouchLogMs > 500UL) {
+        lastTouchLogMs = nowMs;
+        logf("Display touch direct: count=%u x=%d y=%d size=%u id=%u",
+             static_cast<unsigned int>(directCount),
+             directTouch.x,
+             directTouch.y,
+             static_cast<unsigned int>(directTouch.size),
+             static_cast<unsigned int>(directTouch.id));
+    }
 
-    if (pressed && nowMs - lastTouchNavMs > 900UL) {
+    if ((pressed || directPressed) && nowMs - lastTouchNavMs > 900UL) {
         lastTouchNavMs = nowMs;
-        const int x = detail.x;
-        const int y = detail.y;
+        const int x = pressed ? detail.x : directTouch.x;
+        const int y = pressed ? detail.y : directTouch.y;
         if (uiReady && x >= 0 && y >= 0) {
             // Raw fallback for the compact nav strip. This runs outside LVGL so it
             // still helps when the touch rotation is not yet mapped correctly.
