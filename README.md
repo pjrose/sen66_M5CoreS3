@@ -12,7 +12,7 @@ This firmware turns the CoreS3-Lite into a compact premium air-quality station w
 - Presents a dark LVGL interface with glass-style cards, horizontal swipe navigation, alarm banner, and touch controls.
 - Publishes MQTT payloads when Wi-Fi is available while continuing local SD logging when offline.
 - Plays short walk-up chirps through the CoreS3 I2S speaker using `M5.Speaker`, not PWM buzzer output.
-- Captures proximity-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 50 images.
+- Captures manual and wake-triggered camera snapshots, stores JPEG files on SD, and rotates the camera folder to the newest 10,000 images.
 - Provides optional FTP access to the SD card when enabled in settings.
 - Tracks HVAC filter health by learning a particulate baseline and charting long-term PM2.5/PM10 deviation over days.
 - Uses configurable alarm hysteresis, default 5%, so alerts do not flap when a reading hovers near the threshold.
@@ -60,7 +60,7 @@ The settings screen exposes brightness, alarm volume, FTP enable/disable, and ma
 
 The `Baseline` button starts a new HVAC filter baseline capture. By default, the device learns for 72 hours, then stores a trimmed hourly mean for PM2.5 and PM10. The status line shows whether the baseline is learning, ready, or not set.
 
-The bottom row shows the five newest camera entries from `/cam`. Tapping an entry opens a full-screen JPEG preview using the CoreS3 display. The camera manager keeps up to 50 timestamped JPEG captures and removes the oldest files during rotation.
+The `Snap` button saves a timestamped JPEG into `/cam`. The camera manager keeps up to 10,000 captures and removes the oldest files during rotation.
 
 ### Screen 5: Maintenance
 
@@ -157,7 +157,7 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - Grove VCC is 5 V; power the Adafruit 6331 input from Grove VCC and let the breakout LDO provide 3.3 V for the SEN66.
 - microSD SPI follows the CoreS3 pin map: MISO GPIO 35, MOSI GPIO 37, SCK GPIO 36, CS GPIO 4.
 - GC0308 camera uses the current M5Stack CoreS3 RGB565 camera path, then compresses to JPEG before saving.
-- The LTR-553 interrupt GPIO is left as `-1` in `main.cpp` because M5Stack does not expose a clear ESP32 GPIO for it in the public pin table. Proximity is still polled and used for display wake/camera capture.
+- The LTR-553 proximity/ALS path is currently disabled because direct polling of the CoreS3 internal I2C bus interfered with touch input. Camera snapshots are manual via `Snap` and also attempted when the display wakes from a dimmed state.
 
 ## Modules
 
@@ -166,7 +166,7 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 - `logger.*`: 24-byte daily binary records, 48-byte hourly summaries, downsampled history reads, alert log.
 - `ui_manager.*`: LVGL dark glass UI, swipe screens, dashboard, chart, event log, settings/camera roll, maintenance diagnostics.
 - `audio_manager.*`: M5Unified I2S one-shot walk-up chirps and mute behavior.
-- `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 50-file rotation.
+- `camera_manager.*`: CoreS3 GC0308 capture, RGB565-to-JPEG save, 10,000-file rotation.
 - `ftp_manager.*`: SimpleFTPServer wrapper.
 - `web_manager.*`: Device-hosted dashboard, live/history APIs, SD file/image downloads, and config download/upload.
 - `main.cpp`: FreeRTOS acquisition/network tasks, alarm state, UI service loop, light-sleep handling.

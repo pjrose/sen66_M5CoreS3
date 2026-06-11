@@ -12,7 +12,7 @@ class CameraManager {
 public:
     bool begin();
     bool capture(uint32_t timestamp, String* savedPath = nullptr);
-    bool rotate(size_t maxFiles = 50);
+    bool rotate(size_t maxFiles = 10000);
     size_t recentImages(String* out, size_t capacity);
     bool ready() const { return ready_; }
     String lastError() const { return lastError_; }

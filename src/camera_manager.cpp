@@ -121,7 +121,7 @@ bool CameraManager::capture(uint32_t timestamp, String* savedPath) {
     if (savedPath) {
         *savedPath = path;
     }
-    rotate(50);
+    rotate(10000);
     return true;
 }
 
