@@ -1,0 +1,198 @@
+{
+  "parameters": {
+    "width": 108,
+    "height": 76,
+    "base_thickness": 4,
+    "wall_thickness": 2.4,
+    "face_thickness": 3,
+    "emboss_height": 0.6,
+    "core_center": [
+      74,
+      38
+    ],
+    "core_width": 54,
+    "core_height": 54,
+    "core_depth": 16.5,
+    "sensor_center": [
+      22,
+      38
+    ],
+    "sensor_rear_z": 9,
+    "sensor_width": 25.6,
+    "sensor_length": 55.2,
+    "sensor_depth": 21.3,
+    "pcb_origin": [
+      61.3,
+      26.11,
+      6
+    ],
+    "clearance": 0.5,
+    "compressed_pad": 0.5,
+    "core_window": [
+      51,
+      51
+    ],
+    "sensor_window": [
+      24,
+      53.6
+    ],
+    "m3_insert_od": 4.6,
+    "m3_insert_pilot": 4.2,
+    "m3_insert_length": 5,
+    "m3_clearance": 3.4,
+    "m3_countersink_diameter": 6.4,
+    "m25_insert_od": 3.5,
+    "m25_insert_pilot": 3.2,
+    "m25_insert_length": 4,
+    "corner_screw_inset": 6,
+    "service_corner_radius": 3,
+    "wall_mount_centres": [
+      [
+        22,
+        61.25
+      ],
+      [
+        54,
+        61.25
+      ],
+      [
+        86,
+        61.25
+      ]
+    ],
+    "wall_mount_drop": 7,
+    "wall_mount_entry_diameter": 8.4,
+    "wall_mount_track_width": 4.4,
+    "wall_screw_head_diameter": 7.5,
+    "wall_screw_head_height": 3,
+    "wall_screw_running_clearance": 0.3,
+    "qt_bend_radius": 8.5,
+    "usb_service_depth": 38
+  },
+  "derived": {
+    "core_rear_z": 13.8,
+    "device_front_z": 30.3,
+    "bezel_front_z": 33.8,
+    "wall_to_front_mm": 33.8,
+    "max_depth_with_labels_mm": 34.4,
+    "adapter_to_core_gap_mm": 1.9800000000000004,
+    "adapter_hole_pitch_mm": [
+      20.32,
+      12.7
+    ],
+    "insert_floor_mm": 1.5
+  },
+  "parts": {
+    "01_vented_shell": {
+      "watertight": true,
+      "positive_volume": true,
+      "connected_components": 1,
+      "size_mm": [
+        108.00000061909668,
+        76.00000061909668,
+        30.799999222974293
+      ],
+      "volume_cm3": 62.71986664043687,
+      "brep_valid": true
+    },
+    "02_front_bezel": {
+      "watertight": true,
+      "positive_volume": true,
+      "connected_components": 1,
+      "size_mm": [
+        107.99999806750566,
+        75.99999806750566,
+        3.6000000468920916
+      ],
+      "volume_cm3": 12.756622196758048,
+      "brep_valid": true
+    },
+    "03_M3_insert_test": {
+      "watertight": true,
+      "positive_volume": true,
+      "connected_components": 1,
+      "size_mm": [
+        60.00000025954796,
+        13.00000025954796,
+        8.00000025954796
+      ],
+      "volume_cm3": 5.802957748514468,
+      "brep_valid": true
+    },
+    "04_M25_insert_test": {
+      "watertight": true,
+      "positive_volume": true,
+      "connected_components": 1,
+      "size_mm": [
+        60.00000025954796,
+        13.00000025954796,
+        8.00000025954796
+      ],
+      "volume_cm3": 6.002994281638891,
+      "brep_valid": true
+    }
+  },
+  "intersections": [],
+  "access_intersections": [],
+  "wall_head_intersections": [],
+  "core_rear_support_contact_test": [
+    2.93828449694792,
+    1.8395620621580235,
+    2.930728635276021,
+    2.9306437999136867
+  ],
+  "hardware_intersections": {
+    "01_vented_shell": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "02_front_bezel": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    }
+  },
+  "wall_head_hardware_intersections": {
+    "0": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "1": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "2": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "3": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "4": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    },
+    "5": {
+      "core_mm3": 0,
+      "sensor_mm3": 0.0,
+      "adapter_mm3": 0.0
+    }
+  },
+  "retention_test": {
+    "-1": {
+      "core_blocked_mm3": 34.00101490658578,
+      "sensor_blocked_mm3": 5.668429180759458
+    },
+    "1": {
+      "core_blocked_mm3": 34.00082598551895,
+      "sensor_blocked_mm3": 5.66843388929155
+    }
+  }
+}

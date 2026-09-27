@@ -1,0 +1,5 @@
+# Preserve generated CAD bytes and keep large geometry dumps out of code diffs.
+*.step binary linguist-generated=true
+*.stl binary linguist-generated=true
+*.blend binary
+*.png binary
