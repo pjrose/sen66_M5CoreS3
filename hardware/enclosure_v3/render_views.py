@@ -46,4 +46,8 @@ for ob in scene.objects:
     if ob.type in ('MESH', 'CURVE'):
         ob.hide_render = '01_vented_shell' not in ob.name
 render('shell', (.14, -.08, .28), (tx, ty, .014), .15)
-print('Rendered assembly, front, interior, rear and bare shell.')
+for ob in scene.objects:
+    if '02_front_bezel' in ob.name:
+        ob.hide_render = False
+render('access_side', (.30, ty, .017), (.108, ty, .017), .10)
+print('Rendered assembly, front, interior, rear, bare shell and access side.')

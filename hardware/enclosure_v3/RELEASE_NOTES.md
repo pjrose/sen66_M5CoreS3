@@ -1,4 +1,20 @@
-# SEN66 AQM Enclosure v3
+# SEN66 AQM Enclosure v3.1
+
+- Eight full-diameter insert pilots now pass through the rear; fit coupons also
+  use through holes. Check hardware engagement and rear protrusion.
+- Divider shifted 0.7 mm left; all 22 remaining capsule vents are unobstructed.
+- Removed the lone right-side vent and half-moon QT cable notch.
+- Main right opening is still 45 mm wide, with its bottom at the Core rear
+  plane (Z=13.8 mm). The QT route now drops inside the side gap.
+- Service-window sides extend straight to the faceplate, without pointed upper
+  returns. Their lower corners retain 3 mm radii.
+- New insert/vent/window/route checks and a sixth, right-side review render.
+
+The published `enclosure-v3` release and ZIP are unchanged. This revision
+has regenerated source, STEP, STL, Blender, render and validation files in the
+same directory. The faceplate and three-keyhole mounting pattern are unchanged.
+
+## Previous v3 Release
 
 Compact, serviceable PLA enclosure for the supplied CoreS3 housing, SEN66 and
 Adafruit 6331 adapter. This release changes enclosure files only, not firmware.

@@ -1,14 +1,34 @@
-# SEN66 AQM: Compact Enclosure v3
+# SEN66 AQM: Compact Enclosure v3.1
 
 **CAD-checked first-fit prototype. Not physically test printed, load tested or
 thermally validated.** PLA, supplied CoreS3-SE housing model, SEN66, Adafruit 6331.
 Firmware is unchanged. Keep v3 parts together; they do not fit the v2 shell.
 
-[Download the complete v3 ZIP](https://github.com/pjrose/sen66_M5CoreS3/releases/download/enclosure-v3/SEN66_AQM_v3.zip)
-or browse the individual files below. This revision has **three aligned wall
-keyholes**: use the middle for one-screw mounting, or the symmetric outer pair.
+This revision is **v3.1**, in the existing `enclosure_v3` directory.
+[Download the complete v3.1 ZIP](https://github.com/pjrose/sen66_M5CoreS3/releases/download/enclosure-v3.1/SEN66_AQM_v3_1.zip)
+or use the individual files below.
+The [previous published v3 ZIP](https://github.com/pjrose/sen66_M5CoreS3/releases/download/enclosure-v3/SEN66_AQM_v3.zip)
+predates these refinements; it has not been replaced. The unchanged bezel fits
+either v3 shell. Three aligned wall keyholes still allow a middle single screw
+or the symmetric outer pair.
 
-![Assembled v3](renders/assembly.png)
+![Assembled v3.1](renders/assembly.png)
+
+## Final Refinements
+
+- All **eight insert pilots pass completely through the rear**: four M3 corner
+  bosses and four M2.5 mesa holes. The insert test strips also have through holes.
+- Divider moved **0.7 mm toward the SEN66**. All 22 remaining ventilation slots
+  have the same unobstructed 3.4 x 16 mm capsule profile; nominal divider/slot
+  clearance is 0.2 mm.
+- Removed the lone right-side vent and low half-moon I2C notch.
+- Main right access opening remains **45 mm wide**, with its bottom at the
+  **Core rear plane, Z=13.8 mm**. QT wiring returns through this main opening.
+- Both service windows retain 3 mm lower corner radii, but their sides now run
+  straight to the faceplate underside. No pointed upper corner returns remain;
+  the faceplate stays continuous above the openings.
+
+![Straight-sided access opening, lower radii and no extra right vent](renders/access_side.png)
 
 ## Changes From v2
 
@@ -16,7 +36,7 @@ keyholes**: use the middle for one-screw mounting, or the symmetric outer pair.
 - Height reduced from **90 to 76 mm**. Width remains 108 mm. Both device fronts
   remain coplanar; no extra adapter-to-Core clearance was sacrificed.
 - All perimeter air slots have semicircular ends, with no pointed roofs.
-- SD/reset and USB/Grove/power service windows have **3 mm corner radii**.
+- SD/reset and USB/Grove/power service windows have **3 mm lower corner radii**.
 - Reset arrow rebuilt with an overlapping, tangent arrowhead. Its geometry is
   checked as one solid before it is fused to the faceplate.
 - Positive upper/lower stops added for the Core and SEN66. They prevent vertical
@@ -29,7 +49,7 @@ keyholes**: use the middle for one-screw mounting, or the symmetric outer pair.
 - Adapter now bolts directly onto a **continuous flat mesa** using four M2.5
   inserts on the board's actual 20.32 x 12.70 mm hole pattern. No finger clamps.
 - No mounting feet, hanging slit, rear ventilation slits or cable-tie slits.
-  The only openings in the flat back are the three functional wall keyholes.
+  The flat back has three wall keyholes and the eight insert-bore exits.
 - Four aligned countersunk M3 faceplate screws and embossed labels retained.
 
 ## Dimensions
@@ -45,6 +65,9 @@ keyholes**: use the middle for one-screw mounting, or the symmetric outer pair.
 | Core rear Z | 13.8 mm |
 | SEN rear nominal Z | 9 mm |
 | Adapter mesa top Z | 6 mm |
+| M3 / M2.5 through pilot diameter | 4.2 / 3.2 mm |
+| M3 / M2.5 total bore length to rear | 30.8 / 6 mm |
+| Main right opening width / bottom Z | 45 / 13.8 mm |
 | Adapter tallest CAD feature to Core rear | 1.98 mm |
 | Core / SEN front opening | 51 x 51 / 24 x 53.6 mm |
 | Wall screw spacing | 32 mm adjacent / 64 mm between outer holes |
@@ -87,8 +110,8 @@ top/bottom layers, 20-30% infill. Inspect your slicer preview. Narrow capsule
 crowns span 3.4 mm; the divider's rounded cable portal spans up to 14 mm and
 may need local support or bridge tuning on your printer. Large service windows
 terminate at the shell joint: the separately printed bezel supplies their flat
-roofs, avoiding long bridges across the full USB/SD openings. Their 3 mm corner
-returns still need a clean small overhang. No machine-specific G-code supplied.
+roofs, avoiding long bridges across the full USB/SD openings. There are no upper
+corner returns to bridge or support. No machine-specific G-code supplied.
 
 Optional contrasting lettering: change filament after the bezel's 3.0 mm base,
 before the raised 0.6 mm labels. The dark text in the renders is optional colour,
@@ -105,16 +128,25 @@ not a texture hiding missing geometry.
 
 **Confirm M2.5 insert dimensions before printing the shell.** The user specified
 M2.5 threads, but has not yet confirmed the outside dimensions. Defaults are
-adjustable in `parameters.json`: 3.2 mm pilot, 3.5 mm OD, 4 mm length. There is
-1.5 mm of solid PLA beneath each blind pilot. Do not install a longer insert
-without regenerating and rechecking the floor thickness.
+adjustable in `parameters.json`: 3.2 mm pilot, 3.5 mm OD, 4 mm nominal insert
+length. All eight pilots are open through the rear at their full diameter,
+not merely screw-clearance holes. Top entry chamfers are retained.
+
+Through holes prevent screw bottoming in plastic; they do **not** make every
+hardware length suitable. The mesa and underlying base provide only 6 mm of
+total material, and the M3 bosses provide 30.8 mm. Longer inserts can protrude
+through the back. Check engagement, electronics clearance and rear protrusion
+with your actual screws/inserts. Nothing should project into the wall or hold
+the enclosure off it. Install inserts with a depth stop so they cannot sink
+too far into the open pilots.
 
 The adapter's supplied CAD has 2.5 mm holes. Dry-check your M2.5 screws through
 the actual board: nominal diameter leaves little clearance. Never force screws
 through plating or use the screw to drill the PCB. The 5 mm screw length gives
 about 3.43 mm engagement below the 1.57 mm PCB; check your actual board and
-fasteners. Do not bottom a longer screw in the blind socket. The flat mesa assumes
-the underside is clear, as reported by the user; check for solder tails.
+fasteners. Check that longer screws do not protrude behind the rear surface.
+The flat mesa assumes the underside is clear, as reported by the user; check
+for solder tails.
 
 ## Assembly and Fit Checks
 
@@ -135,8 +167,12 @@ the underside is clear, as reported by the user; check for solder tails.
    around the upper side of the adapter into the six-pin connector. Leave slack
    for servicing without tugging on the board.
 6. Connect Grove-to-QT. Let it loop outside the right edge, returning through
-   the rounded low notch under the main service window to the right QT socket.
-   Do not route wires over the adapter's tallest components under the Core.
+   main service opening, just above its lower lip. Drop inside the gap between
+   the Core's right side and the shell, then turn under the Core to the right QT
+   socket. The route reserves a 1.8 mm-high entry below the USB plug envelope;
+   the side gap is 4.6 mm. Verify the actual wire bundle and bend flexibility
+   before assembly; a thick or stiff cable may not fit this route. Do not force
+   a tight bend or route wires over the adapter's tallest components.
    Rear tie slots have intentionally been removed; use a small adhesive cable
    anchor on a clear interior surface if needed, outside the screw-head paths.
 7. Add small soft pads to the four rear supports of each device, aiming for
@@ -202,10 +238,15 @@ safety-monitor enclosure or a mechanical test of HVAC filter life.
 
 - All four print meshes: valid single-solid BREP, watertight, positive volume,
   one connected mesh component.
+- All eight complete pilot cylinders are unobstructed through the final shell.
+- All 22 vent profiles and both service windows remain clear after all supports
+  and the divider have been added. The former right vent and QT notch are solid.
 - Installed shell and bezel do not intersect each other or the imported Core,
   sensor or adapter models.
 - Reserved USB/Grove/SD/reset/power access, SEN plug and QT return volumes remain
   clear of the printed parts.
+- The three QT return segments also clear the imported Core shell and reserved
+  USB-plug volume. These are space checks, not cable bend-radius certification.
 - All three wall-head **entry and sliding envelopes** are checked against shell,
   bezel, hardware and the reserved connector-access volumes. This uses the
   specified head envelope, not an unlimited screw size.
@@ -225,7 +266,7 @@ The divider is an airflow baffle intended to reduce heating from the Core,
 not a complete thermal break: heat can still transfer through the shared base,
 faceplate and cable opening. Its accuracy benefit has not yet been measured.
 
-![Flat rear with only the wall keyholes](renders/rear.png)
+![Flat rear with three wall keyholes and eight through pilot exits](renders/rear.png)
 
 ## Regenerate
 
@@ -245,7 +286,7 @@ python -m venv .venv
 
 Run `blender_scene.py` through Blender/MCP with `__file__` set to its path, or
 Blender's `--python` argument. It creates `AQV3_Assembly` without replacing the
-older review scenes. Run `render_views.py` on that scene to regenerate all five
+older review scenes. Run `render_views.py` on that scene to regenerate all six
 review images. Windows lettering uses Arial Bold; inspect font substitutions
 on other systems. Model-specific port positions are not a universal resize
 template. Re-run geometry checks and visual review after parameter changes.

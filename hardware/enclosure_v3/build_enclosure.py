@@ -35,9 +35,9 @@ def slot(length, width, d, x, y, z, angle=0):
 
 
 def socket(body, x, y, top, family='m3'):
-    pilot, length = P[family + '_insert_pilot'], P[family + '_insert_length']
-    assert top - length - .5 >= 1.2, 'Insufficient floor beneath insert'
-    body = body.cut(cyl(pilot / 2, length + .5, x, y, top - length - .5))
+    # Full pilot diameter through the rear, with the same top lead-in chamfer.
+    pilot = P[family + '_insert_pilot']
+    body = body.cut(cyl(pilot / 2, top + 2, x, y, -1))
     return body.cut(cq.Solid.makeCone(pilot / 2, pilot / 2 + .3, .5, cq.Vector(x, y, top - .5)))
 
 
@@ -53,9 +53,10 @@ def vent(plane, center, z0, z1, width, depth, offset):
 
 
 def service_window(plane, center, width, z0, z1, depth, offset):
-    # Rounded at all four corners. Its top touches the shell joint: the
-    # separately printed flat bezel supplies the roof, not a long bridge.
-    solid = rounded(width, z1 - z0, depth, P['service_corner_radius'], center, (z0 + z1) / 2, 0)
+    # Only the lower corners remain in the shell. Overshoot the top so both
+    # sides run straight to the separate faceplate, with no pointed returns.
+    r = P['service_corner_radius']
+    solid = rounded(width, z1 - z0 + 2 * r, depth, r, center, (z0 + z1 + 2 * r) / 2, 0)
     if plane == 'YZ':
         solid = solid.rotate((0, 0, 0), (1, 1, 1), 120)
     else:
@@ -93,22 +94,27 @@ assert cy == sy == H / 2, 'Device centre lines must match'
 base = rounded(W, H, joint, 4, W / 2, H / 2, 0)
 base = base.cut(rounded(W - 2 * wall, H - 2 * wall, joint - B + 1, 4 - wall, W / 2, H / 2, B))
 for x, y in face_bolts:
-    base = socket(base.union(cyl(4.5, joint - B, x, y, B)), x, y, joint)
+    base = base.union(cyl(4.5, joint - B, x, y, B))
 
-base = base.cut(service_window('YZ', cy + 1.5, 45, 11, joint, wall + 2, (W - wall - 1, 0, 0)))
-base = base.cut(vent('YZ', cy - 3, 7, 13, 5.2, wall + 2, (W - wall - 1, 0, 0)))
-base = base.cut(service_window('XZ', cx - 1, 40, 15.5, joint, wall + 2, (0, H + 1, 0)))
+windows = {
+    'USB_Grove_power': service_window('YZ', cy + 1.5, 45, cr, joint, wall + 2, (W - wall - 1, 0, 0)),
+    'SD_reset': service_window('XZ', cx - 1, 40, 15.5, joint, wall + 2, (0, H + 1, 0)),
+}
+for opening in windows.values():
+    base = base.cut(opening)
+vents = []
 for y in range(15, int(H - 10), 7):
-    base = base.cut(vent('YZ', y, 8, 24, 3.4, wall + 2, (-1, 0, 0)))
-for y in (10,):
-    base = base.cut(vent('YZ', y, 8, 24, 3.4, wall + 2, (W - wall - 1, 0, 0)))
+    vents.append(vent('YZ', y, 8, 24, 3.4, wall + 2, (-1, 0, 0)))
 for x in range(18, 91, 8):
-    base = base.cut(vent('XZ', x, 8, 24, 3.4, wall + 2, (0, wall + 1, 0)))
+    vents.append(vent('XZ', x, 8, 24, 3.4, wall + 2, (0, wall + 1, 0)))
 for x in (18, 26, 34, 42):
-    base = base.cut(vent('XZ', x, 8, 24, 3.4, wall + 2, (0, H + 1, 0)))
+    vents.append(vent('XZ', x, 8, 24, 3.4, wall + 2, (0, H + 1, 0)))
+for opening in vents:
+    base = base.cut(opening)
 
-divider = box(1.6, H - 2 * wall, joint - B, 40, H / 2, B)
-divider = divider.cut(vent('YZ', sy - 3, 5.8, 22, 14, 4, (38, 0, 0)))
+divider_x, divider_t = P['divider_center_x'], P['divider_thickness']
+divider = box(divider_t, H - 2 * wall, joint - B, divider_x, H / 2, B)
+divider = divider.cut(vent('YZ', sy - 3, 5.8, 22, 14, divider_t + 2, (divider_x - divider_t / 2 - 1, 0, 0)))
 base = base.union(divider)
 
 core_supports = []
@@ -146,11 +152,13 @@ for sign in (-1, 1):
     base = base.union(stop)
     stops['sensor'].append(stop)
 
-# Continuous flat PCB mesa, four blind M2.5 insert sockets. No fingers,
+# Continuous flat PCB mesa, four through M2.5 insert sockets. No fingers,
 # cantilevers, nuts, or clamp plates are needed for the adapter.
 base = base.union(rounded(28.4, 20.78, pz - B, 1.5, px + 12.7, py + 8.89, B))
-for x, y in board_bolts:
-    base = socket(base, x, y, pz, 'm25')
+insert_bores = [('m3', x, y, joint) for x, y in face_bolts]
+insert_bores += [('m25', x, y, pz) for x, y in board_bolts]
+for family, x, y, top in insert_bores:
+    base = socket(base, x, y, top, family)
 
 # Three alternative keyholes share a high horizontal row. The outer holes
 # are symmetric about the case centre, with the left under the SEN centre.
@@ -212,7 +220,7 @@ for name, family, diameters in [('03_M3_insert_test', 'm3', [4.0, 4.1, 4.2, 4.3,
                                ('04_M25_insert_test', 'm25', [3.0, 3.1, 3.2, 3.3, 3.4])]:
     coupon = rounded(60, 13, 8, 2, 30, 6.5, 0).cut(cyl(1.5, 10, 0, 6.5, -1))
     for i, d in enumerate(diameters):
-        coupon = coupon.cut(cyl(d / 2, P[family + '_insert_length'] + .5, 8 + i * 11, 6.5, 8 - P[family + '_insert_length'] - .5))
+        coupon = coupon.cut(cyl(d / 2, 10, 8 + i * 11, 6.5, -1))
     export_part(name, coupon)
 
 names = ['01_vented_shell', '02_front_bezel']
@@ -224,7 +232,10 @@ assembly.export(str(ROOT / 'enclosure.step'))
 report = {'parameters': P, 'derived': {'core_rear_z': cr, 'device_front_z': face,
     'bezel_front_z': front, 'wall_to_front_mm': front, 'max_depth_with_labels_mm': front + P['emboss_height'],
     'adapter_to_core_gap_mm': cr - (pz + 5.82), 'adapter_hole_pitch_mm': [20.32, 12.70],
-    'insert_floor_mm': pz - P['m25_insert_length'] - .5},
+    'insert_bores_through': True, 'm3_bore_length_mm': joint, 'm25_bore_length_mm': pz,
+    'right_window_width_mm': 45, 'right_window_bottom_z': cr,
+    'divider_to_nearest_vent_mm': 42 - 3.4 / 2 - (divider_x + divider_t / 2),
+    'vent_count': len(vents)},
     'parts': {}, 'intersections': [], 'access_intersections': [], 'wall_head_intersections': []}
 for name, shape in parts.items():
     m = trimesh.load(ROOT / 'print' / (name + '.stl'))
@@ -236,6 +247,28 @@ for name, shape in parts.items():
 overlap = base.intersect(bezel).val().Volume()
 assert overlap < .01, ('Shell/bezel interference', overlap)
 
+# Check final unions, not just the initial cuts: supports/dividers must not
+# re-cap a bore or partially block a matching capsule vent.
+report['insert_bore_checks'] = []
+for family, x, y, top in insert_bores:
+    probe = cyl(P[family + '_insert_pilot'] / 2, top + 2, x, y, -1)
+    v = base.intersect(probe).val().Volume()
+    report['insert_bore_checks'].append({'family': family, 'xy': [x, y], 'obstruction_mm3': v})
+    assert v < .001, ('Insert bore blocked', family, x, y, v)
+report['vent_obstruction_mm3'] = [base.intersect(opening).val().Volume() for opening in vents]
+assert max(report['vent_obstruction_mm3']) < .001, report['vent_obstruction_mm3']
+report['service_window_obstruction_mm3'] = {name: base.intersect(opening).val().Volume() for name, opening in windows.items()}
+assert max(report['service_window_obstruction_mm3'].values()) < .001, report['service_window_obstruction_mm3']
+# These two former cuts must now be entirely solid shell, not hidden notches.
+report['closed_opening_checks'] = {}
+for name, probe in {
+    'former_right_vent': box(wall, 3.4, 16, W - wall / 2, 10, 8),
+    'former_QT_notch': box(wall, 5.2, 6, W - wall / 2, cy - 3, 7),
+}.items():
+    missing = probe.cut(base).val().Volume()
+    report['closed_opening_checks'][name] = missing
+    assert missing < .001, ('Unwanted opening remains', name, missing)
+
 keepouts = {
     'USB_plug_and_grip': box(P['usb_service_depth'], 14, 12, cx + 27 + P['usb_service_depth'] / 2, cy, cr + 2.4),
     'Grove_plug': box(14, 11, 8, cx + 34, cy + 14, cr + 3.4),
@@ -243,7 +276,11 @@ keepouts = {
     'reset_access': box(9, 15, 10, cx - 14.7, cy + 34.5, cr + 4.2),
     'power_access': box(14, 12, 12, cx + 34, cy - 13, cr + 1.8),
     'sensor_plug_allowance': box(11, 14, 10, sx + 5, sy - 5.6, 4.1),
-    'QT_return': box(22, 3.6, 3, px + 36.4, py + 8.89, pz + 1.9),
+    # Return through the main opening, drop beside the Core, then turn
+    # underneath it. The former low half-moon notch is deliberately closed.
+    'QT_entry': box(8, 3.6, 1.8, 106, cy - 3, cr + .3),
+    'QT_drop': box(3.6, 3.6, cr + 2.1 - (pz + 1.9), 103.3, cy - 3, pz + 1.9),
+    'QT_under_core': box(18.4, 3.6, 3, px + 34.6, py + 8.89, pz + 1.9),
 }
 for port, k in keepouts.items():
     for name in names:
@@ -272,6 +309,16 @@ if __name__ == '__main__':
     core = trimesh.util.concatenate([m for m in raw.split(only_watertight=False) if m.bounds[0, 2] > -30])
     core.apply_transform(np.array([[-1, 0, 0, cx], [0, 0, 1, cy], [0, 1, 0, cr + 5.3], [0, 0, 0, 1]]))
     core.export(ROOT / 'reference' / 'core_shell_reference.stl')
+    report['QT_return_clearance_checks'] = {}
+    for name in ('QT_entry', 'QT_drop', 'QT_under_core'):
+        k = keepouts[name]
+        verts, faces = k.val().tessellate(.03)
+        mesh = trimesh.Trimesh([v.toTuple() for v in verts], faces)
+        overlap = trimesh.boolean.intersection([core, mesh], engine='manifold')
+        result = {'core_mm3': 0 if not len(overlap.faces) else float(overlap.volume),
+                  'USB_access_mm3': k.intersect(keepouts['USB_plug_and_grip']).val().Volume()}
+        report['QT_return_clearance_checks'][name] = result
+        assert all(v < .01 for v in result.values()), ('QT return blocked', name, result)
     lowered_core = core.copy()
     lowered_core.apply_translation([0, 0, -pad - .25])
     report['core_rear_support_contact_test'] = []

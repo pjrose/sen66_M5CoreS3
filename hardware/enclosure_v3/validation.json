@@ -45,6 +45,8 @@
     "m25_insert_pilot": 3.2,
     "m25_insert_length": 4,
     "corner_screw_inset": 6,
+    "divider_center_x": 39.3,
+    "divider_thickness": 1.6,
     "service_corner_radius": 3,
     "wall_mount_centres": [
       [
@@ -80,7 +82,13 @@
       20.32,
       12.7
     ],
-    "insert_floor_mm": 1.5
+    "insert_bores_through": true,
+    "m3_bore_length_mm": 30.8,
+    "m25_bore_length_mm": 6,
+    "right_window_width_mm": 45,
+    "right_window_bottom_z": 13.8,
+    "divider_to_nearest_vent_mm": 0.20000000000000284,
+    "vent_count": 22
   },
   "parts": {
     "01_vented_shell": {
@@ -92,7 +100,7 @@
         76.00000061909668,
         30.799999222974293
       ],
-      "volume_cm3": 62.71986664043687,
+      "volume_cm3": 61.73530860757362,
       "brep_valid": true
     },
     "02_front_bezel": {
@@ -114,9 +122,9 @@
       "size_mm": [
         60.00000025954796,
         13.00000025954796,
-        8.00000025954796
+        7.999999884865247
       ],
-      "volume_cm3": 5.802957748514468,
+      "volume_cm3": 5.6296526851463815,
       "brep_valid": true
     },
     "04_M25_insert_test": {
@@ -128,13 +136,125 @@
         13.00000025954796,
         8.00000025954796
       ],
-      "volume_cm3": 6.002994281638891,
+      "volume_cm3": 5.862034479737681,
       "brep_valid": true
     }
   },
   "intersections": [],
   "access_intersections": [],
   "wall_head_intersections": [],
+  "insert_bore_checks": [
+    {
+      "family": "m3",
+      "xy": [
+        6,
+        6
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m3",
+      "xy": [
+        6,
+        70
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m3",
+      "xy": [
+        102,
+        6
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m3",
+      "xy": [
+        102,
+        70
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m25",
+      "xy": [
+        63.839999999999996,
+        28.65
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m25",
+      "xy": [
+        63.839999999999996,
+        41.35
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m25",
+      "xy": [
+        84.16,
+        28.65
+      ],
+      "obstruction_mm3": 0.0
+    },
+    {
+      "family": "m25",
+      "xy": [
+        84.16,
+        41.35
+      ],
+      "obstruction_mm3": 0.0
+    }
+  ],
+  "vent_obstruction_mm3": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0
+  ],
+  "service_window_obstruction_mm3": {
+    "USB_Grove_power": 0.0,
+    "SD_reset": 0.0
+  },
+  "closed_opening_checks": {
+    "former_right_vent": 0.0,
+    "former_QT_notch": 0.0
+  },
+  "QT_return_clearance_checks": {
+    "QT_entry": {
+      "core_mm3": 0,
+      "USB_access_mm3": 0.0
+    },
+    "QT_drop": {
+      "core_mm3": 0,
+      "USB_access_mm3": 0.0
+    },
+    "QT_under_core": {
+      "core_mm3": 0,
+      "USB_access_mm3": 0.0
+    }
+  },
   "core_rear_support_contact_test": [
     2.93828449694792,
     1.8395620621580235,

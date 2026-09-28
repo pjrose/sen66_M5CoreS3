@@ -28,6 +28,8 @@
   "m25_insert_pilot": 3.2,
   "m25_insert_length": 4,
   "corner_screw_inset": 6,
+  "divider_center_x": 39.3,
+  "divider_thickness": 1.6,
   "service_corner_radius": 3,
   "wall_mount_centres": [[22, 61.25], [54, 61.25], [86, 61.25]],
   "wall_mount_drop": 7,

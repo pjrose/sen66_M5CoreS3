@@ -140,12 +140,13 @@ def route(name, points, mat, r=.9):
 
 radius = max(8.5, P['qt_bend_radius'])
 z_start, z_end = cr + 7.4, pz + 3.4
+z_entry = cr + 1.2
 qt = [(cx + 27, cy + 14, z_start), (cx + 37, cy + 14, z_start)]
 for i in range(1, 25):
     t = i * math.pi / 24
     qt.append((cx + 37 + radius * math.sin(t), cy + 14 - radius + radius * math.cos(t),
-               z_start + (z_end - z_start) * i / 24))
-qt += [(cx + 22, cy - 3, z_end), (px + 25.4, py + 8.89, z_end)]
+               z_start + (z_entry - z_start) * i / 24))
+qt += [(103.3, cy - 3, z_entry), (103.3, cy - 3, z_end), (px + 25.4, py + 8.89, z_end)]
 route('QT approximate cable', qt, amber)
 route('SEN approximate cable', [(sx + 5, sy - 5.6, 15), (sx + 5, sy - 5.6, 8),
     (35, sy - 5.6, 8), (44, sy - 3, 8), (55, sy - 3, 8), (56, cy + 14, 9),

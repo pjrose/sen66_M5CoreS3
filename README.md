@@ -177,15 +177,18 @@ This project builds successfully with PlatformIO Core 6.1.19 against `board = m5
 
 ## Printable Enclosure
 
-The [v3 enclosure and assembly guide](hardware/enclosure_v3/README.md) includes
+The [v3.1 enclosure and assembly guide](hardware/enclosure_v3/README.md) includes
 PLA-ready STLs, editable STEP/CadQuery sources, a Blender scene and a fit checklist.
 It has a compact rounded-slot shell, labeled bezel, positive device stops,
 four countersunk M3 front screws and an M2.5-insert adapter mesa.
 It is CAD-checked but still requires a physical test fit
 against the supplied CoreS3 shell variant and your actual plugs and cables.
 
-[Download the complete enclosure bundle](https://github.com/pjrose/sen66_M5CoreS3/releases/download/enclosure-v3/SEN66_AQM_v3.zip)
-with print STLs, STEP, the Blender scene, parametric sources and assembly instructions.
+[Download the complete v3.1 enclosure bundle](https://github.com/pjrose/sen66_M5CoreS3/releases/download/enclosure-v3.1/SEN66_AQM_v3_1.zip).
+It includes eight through insert bores, an unobstructed vent pattern and
+straight-sided service openings without the extra right-side vent or I2C notch.
+The [previous v3 release](https://github.com/pjrose/sen66_M5CoreS3/releases/tag/enclosure-v3)
+remains available separately.
 Three aligned wall keyholes provide a centered single-screw option or a symmetric
 outer pair, with the outer holes 22 mm from either side wall.
 
@@ -194,6 +197,7 @@ outer pair, with the outer holes 22 mm from either side wall.
 ![Interior and cable routing](hardware/enclosure_v3/renders/interior.png)
 ![Bare shell and adapter mounting mesa](hardware/enclosure_v3/renders/shell.png)
 ![Rear mounting keyholes](hardware/enclosure_v3/renders/rear.png)
+![Refined right-side access opening](hardware/enclosure_v3/renders/access_side.png)
 
 ## Modules
 
